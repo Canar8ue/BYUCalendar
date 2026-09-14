@@ -1,0 +1,47 @@
+# Public source audit — September 14, 2026
+
+This is a broad discovery pass, not a claim that every BYU event is public or included. Source event counts overlap; the app merges matching listings.
+
+## Newly integrated
+
+| Official source | Import method | Upcoming records observed | Coverage |
+| --- | --- | ---: | --- |
+| [AIS activities](https://byu-ais.byu.edu/activities) | Public Google ICS, linked from Activities | 120 | IS Academy, Tech Talks, webinars, employer sessions and socials. Some details are only in Slack. |
+| [Accounting Society](https://accountingsociety.byu.edu/) | Homepage event listings → detail pages → `/_event.ics` | 8 | Fall socials, panels, career prep and case competition. Dates come from ICS, not stale URL slugs. |
+| [Engineering](https://engineering.byu.edu/calendar) | `/iCal/export/all` + `/api/Events.json` | 45 | Club Rush, Snack & Study, leadership workshops, SIOY and fairs. |
+| [Mathematics](https://math.byu.edu/calendar) | Same calendar endpoints; filter to Math-hosted links | 25 | Seminars, APEX, recruiting sessions, talks and deadlines. |
+| [Computer Science](https://cs.byu.edu/department/event-calendar) | Listing → event detail → per-event ICS | 7 | Meet the Labs, cyber defense tryouts, seminars and fairs. |
+| [ACME](https://acme.byu.edu/) | Homepage event links → per-event ICS | 1 | SNACME. Math links already covered by Mathematics. |
+| [Life Sciences](https://lifesciences.byu.edu/month) | Calendar ICS + Events JSON; own-host records | 10 | Opening social, student activities, research and wellness. |
+| [Kennedy Center](https://kennedy.byu.edu/events) | Search listing → detail → per-event ICS | 25 | Global Environmental Studies Club pizza party, international careers, films, lectures and study abroad. |
+| [BYU Law](https://law.byu.edu/) | Linked 25Live public calendar ICS | 67 | Public law-school listings including academic dates. Attendance restrictions vary. |
+| [Marketing Association](https://ma.byu.edu/calendar) | Linked public Google ICS | 0 | The feed is reachable but has no upcoming records. Newer MA events appear in the club-directory snapshot. |
+| [BYU Student Organizations](https://clubs.byu.edu/) | Public browser-observed snapshot | 119 | 48 organizations. Explicitly **not** automatically refreshed. |
+
+Exact feed URLs are in `lib/catalog.mjs`. Website source URLs are refreshed to discover new event links; those links must stay on the configured origin. Page and request bounds intentionally fail rather than silently publish a truncated replacement.
+
+The Student Organizations public list contained 249 past and future records. The last 119 listings ran from September 14, 2026 through January 12, 2027. We observed the current September 2026 calendar and the explicit January 2027 date. Listing-only records preserve title, host organization, date/time and location; other fields stay unknown. A few directly visited event detail pages add descriptions, end times and deep links. Other entries link to the public directory. There is no verified public feed/export, and the published API documentation route denied access. No sign-in, session extraction, or private API access was used.
+
+Club coverage includes Accounting Society, Women in Finance, Finance Society/Investment Banking Association, Marketing Association, Sales Society, SHRM, Business Management, Global Supply Chain, cybersecurity, SHPE, biomedical engineering, aeronautics, rocketry, operations research, nursing, dietetics, neuroscience, history, geography, cultural clubs, recreation clubs, and performing groups.
+
+## Other sources checked
+
+| Source | Finding |
+| --- | --- |
+| [APEX](https://apex.byu.edu/apex-calendar) | Links to Math events already imported. |
+| [Library events](https://lib.byu.edu/events/) | Current featured events link to the main BYU calendar already imported. |
+| [Honors](https://honors.byu.edu/upcoming-events) | Hand-maintained table omits years and includes ambiguous/inconsistent entries. Needs a verified dated export before automatic import. |
+| [Statistics](https://statistics.byu.edu/upcoming-events) | Current page contains a photo contest article, not a complete dated event feed. |
+| [Y-Serve](https://yserve.byu.edu/) | Publicly embedded Outlook calendar is reachable but yielded no events in our import window. |
+| [Beta Alpha Psi](https://bap.byu.edu/) | Redirects to an unavailable Wix site. Kept unconnected. |
+| [Marriott club directory](https://marriott.byu.edu/clubs/directory) | Redirects to Student Organizations, whose published events were captured above. |
+
+Handshake access is deferred at the user's request. Private AIS Slack, Instagram/Facebook, and member-only club announcements require their own authorized connectors or organizer feeds.
+
+## Data quality and ongoing updates
+
+- Live sources share the app's hourly refresh policy. The browser checks on opening and every five minutes while open. No closed-app scheduler is configured.
+- The Student Organizations source is a September 14 snapshot and is excluded from those refreshes. A published BYU club feed/API is the preferred next step for unattended updates.
+- Food/snack/drink filters require source evidence. A restaurant serving statement and “pizza and drinks provided” are recognized. Free food is separate from free admission.
+- Brightspot metadata occasionally contains bad end dates. A timed duration longer than 31 days is withheld and explained in the description; the real start and source link remain.
+- An individual source's counts may change or drop to zero as events pass. A reachable calendar with no future listings is distinct from a failed connection.

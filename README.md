@@ -3,7 +3,8 @@
 A campus event calendar built with React, Vinext, and Cloudflare D1, using the colors and typography of CareerLaunchpad.
 
 - Week, month, and responsive agenda views
-- Real public BYU and Marriott feed imports with source provenance
+- Public BYU, Marriott, AIS, Accounting Society, and department imports with source provenance
+- A dated snapshot of 119 public listings from 48 student organizations
 - Phrase-based smart search and grouped interest/detail filters
 - Account-specific saved events and named filters
 - iCalendar export
