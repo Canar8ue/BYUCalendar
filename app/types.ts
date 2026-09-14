@@ -1,0 +1,5 @@
+export type CampusEvent={id:string;title:string;description:string;start:string;end:string|null;allDay:boolean;location:string;url:string;sourceId:string;sourceName:string;category:string;tags:string[];food:string|null;snacks:string|null;drinks:string|null;free:boolean|null;audience:string|null;format:string|null;cancelled:boolean;sourceUpdated:string|null;additionalSources?:{name:string;url:string}[]};
+export type SourceStatus={id:string;name:string;url:string;count:number;lastSuccess:string|null;error:string|null;enabled:boolean;note?:string};
+export type CalendarData={events:CampusEvent[];sources:SourceStatus[];stored:boolean;error?:string};
+export type SavedView={id:string;name:string;query:string;categories:string[];tags:string[]};
+export type Preferences={saved:string[];views:SavedView[]};

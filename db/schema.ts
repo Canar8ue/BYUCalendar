@@ -1,0 +1,3 @@
+import {sqliteTable,text,integer} from "drizzle-orm/sqlite-core";
+export const sources=sqliteTable("source_snapshots",{id:text("id").primaryKey(),payload:text("payload").notNull(),lastSuccess:text("last_success").notNull(),lastAttempt:text("last_attempt"),error:text("error"),lockUntil:integer("lock_until").notNull().default(0)});
+export const preferences=sqliteTable("user_preferences",{userId:text("user_id").primaryKey(),payload:text("payload").notNull()});
