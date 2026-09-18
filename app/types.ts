@@ -1,5 +1,10 @@
-export type CampusEvent={id:string;title:string;description:string;start:string;end:string|null;allDay:boolean;location:string;url:string;sourceId:string;sourceName:string;category:string;tags:string[];food:string|null;snacks:string|null;drinks:string|null;free:boolean|null;audience:string|null;format:string|null;cancelled:boolean;sourceUpdated:string|null;additionalSources?:{name:string;url:string}[]};
-export type SourceStatus={id:string;name:string;url:string;count:number;lastSuccess:string|null;error:string|null;enabled:boolean;note?:string};
+export type CampusEvent={id:string;title:string;description:string;start:string;end:string|null;allDay:boolean;location:string;url:string;sourceId:string;sourceName:string;category:string;tags:string[];food:string|null;snacks:string|null;drinks:string|null;free:boolean|null;audience:string|null;format:string|null;cancelled:boolean;sourceUpdated:string|null;additionalSources?:{name:string;url:string}[];community?:boolean;organizer?:string;communityTags?:{id:string;tag:string;note:string}[];snacksImplied?:boolean};
+export type SourceStatus={id:string;name:string;url:string;count:number;lastSuccess:string|null;error:string|null;enabled:boolean;snapshot?:boolean;note?:string};
 export type CalendarData={events:CampusEvent[];sources:SourceStatus[];stored:boolean;error?:string};
 export type SavedView={id:string;name:string;query:string;categories:string[];tags:string[]};
 export type Preferences={saved:string[];views:SavedView[]};
+export type AccountUser={id:string;email:string;name:string;emailVerified:boolean};
+export type AccountState={user:AccountUser|null;emailReady:boolean;permissions:{addListings:boolean;addTags:boolean;reportListings:boolean;reviewReports:boolean}};
+export type ListingReport={id:string;eventId:string;reason:string;details:string;status:string;createdAt:string;hidden:boolean;event:CampusEvent};
+export type InboxReply={id:string;toAddress:string;subject:string;bodyText:string;sentBy:string;sentAt:string};
+export type InboxEmail={id:string;fromAddress:string;toAddress:string;subject:string;preview:string;bodyText:string;receivedAt:string;readAt:string|null;repliedAt:string|null;replies:InboxReply[]};

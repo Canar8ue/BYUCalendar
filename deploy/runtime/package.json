@@ -1,0 +1,13 @@
+{
+  "name": "byu-calendar-runtime",
+  "version": "1.0.0",
+  "private": true,
+  "engines": {"node": ">=22.13.0"},
+  "dependencies": {"wrangler": "4.92.0"},
+  "overrides": {
+    "undici": "7.29.0",
+    "ws": "8.21.3",
+    "wrangler": {"esbuild": "0.28.1"},
+    "miniflare": {"sharp": "0.35.4"}
+  }
+}

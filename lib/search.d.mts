@@ -4,3 +4,6 @@ export function dayKey(date:Date):string;
 export function parseSearch(query:string,now?:Date):SearchIntent;
 export function matchesEvent(event:CampusEvent,query:string|SearchIntent,categories?:string[],tags?:string[],now?:Date):boolean;
 export function exportICS(events:CampusEvent[]):string;
+export function eventSlug(title:string):string;
+export function googleCalendarUrl(event:CampusEvent):string|null;
+export function personalCalendarKind(userAgent:string,maxTouchPoints:number):'google'|'apple'|'download';

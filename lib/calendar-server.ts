@@ -2,6 +2,7 @@ import {database} from '../db';
 import seed from '../data/seed.json';
 import {SOURCES,UNCONNECTED,mergeEvents,lastDay,classify} from './catalog.mjs';
 import {importSource} from './source-import.mjs';
+import {communityCalendar} from './community-store.mjs';
 import type {CampusEvent,CalendarData} from '../app/types';
 
 type Snapshot={id:string;payload:string;last_success:string;last_attempt:string|null;error:string|null;lock_until:number};
@@ -15,12 +16,25 @@ async function ensureSeed(){
  for(const source of SOURCES.filter(s=>s.kind==='snapshot')){const saved=seed.find(s=>s.id===source.id);if(saved)await db.prepare('UPDATE source_snapshots SET payload=?,last_success=?,error=NULL WHERE id=? AND last_success<?').bind(JSON.stringify(saved.events),saved.lastSuccess,source.id,saved.lastSuccess).run();}
  return db;
 }
+// The merged calendar only changes when a source refresh or a community/moderation
+// mutation runs, so a short shared cache avoids recomputing ~1400 events per view.
+let calendarCache:{at:number;data:CalendarData}|null=null;
+const CALENDAR_CACHE_MS=30000;
+export function invalidateCalendar(){calendarCache=null;}
 export async function readCalendar():Promise<CalendarData>{
+ if(calendarCache&&Date.now()-calendarCache.at<CALENDAR_CACHE_MS)return calendarCache.data;
+ const data=await buildCalendar();
+ calendarCache={at:Date.now(),data};
+ return data;
+}
+async function buildCalendar():Promise<CalendarData>{
  const db=await ensureSeed(),rows=(await db.prepare('SELECT * FROM source_snapshots').all<Snapshot>()).results;
  const all:CampusEvent[]=[],today=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Denver'}).format(new Date());
  const statuses=SOURCES.map(source=>{const row=rows.find(r=>r.id===source.id);const events:CampusEvent[]=row?JSON.parse(row.payload).map((e:CampusEvent)=>classify(e,{IsFree:e.free===null?undefined:String(e.free)})):[];all.push(...events);
-   return {id:source.id,name:source.name,url:source.url,count:events.filter(e=>!e.cancelled&&lastDay(e)>=today).length,lastSuccess:row?.last_success==='1970-01-01T00:00:00Z'?null:row?.last_success||null,error:row?.error||null,enabled:true,note:source.note};});
- return {events:mergeEvents(all) as CampusEvent[],sources:[...statuses,...UNCONNECTED.map(s=>({...s,enabled:false,count:0,lastSuccess:null,error:null}))],stored:true};
+   return {id:source.id,name:source.name,url:source.url,count:events.filter(e=>!e.cancelled&&lastDay(e)>=today).length,lastSuccess:row?.last_success==='1970-01-01T00:00:00Z'?null:row?.last_success||null,error:row?.error||null,enabled:true,snapshot:source.kind==='snapshot',note:source.note};});
+ const events=await communityCalendar(db,mergeEvents(all)) as CampusEvent[];
+ const community=events.filter(e=>e.community);
+ return {events,sources:[...statuses,...(community.length?[{id:'community',name:'Community listings',url:'/',enabled:true,count:community.filter(e=>!e.cancelled&&lastDay(e)>=today).length,lastSuccess:null,error:null,note:'Published by members with verified BYU email addresses. Details are community submitted.'}]:[]),...UNCONNECTED.map(s=>({...s,enabled:false,count:0,lastSuccess:null,error:null}))],stored:true};
 }
 export async function refreshCalendar(force=false){
  const db=await ensureSeed(),rows=(await db.prepare('SELECT * FROM source_snapshots').all<Snapshot>()).results;let refreshed=0;
@@ -37,5 +51,6 @@ export async function refreshCalendar(force=false){
      await db.prepare('UPDATE source_snapshots SET error=?,lock_until=0 WHERE id=? AND lock_until=?').bind('Could not refresh this source. Previously collected events are still available.',source.id,lease).run();
    }
  }
+ if(refreshed)invalidateCalendar();
  return {refreshed};
 }

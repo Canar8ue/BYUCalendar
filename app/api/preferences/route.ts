@@ -1,5 +1,29 @@
+import {z} from 'zod';
 import {database} from '../../../db';
-import {getIdentityUser} from '../../identity-shim';
-export const dynamic='force-dynamic';
-export async function GET(){const user=await getIdentityUser();if(!user)return Response.json({saved:[],views:[],signedIn:false});try{const row=await database().prepare('SELECT payload FROM user_preferences WHERE user_id=?').bind(user.userId).first<{payload:string}>();return Response.json({...row?JSON.parse(row.payload):{saved:[],views:[]},signedIn:true});}catch{return Response.json({error:'Your saved calendar could not be loaded.'},{status:503});}}
-export async function PUT(request:Request){const user=await getIdentityUser();if(!user)return Response.json({error:'Sign in to save your calendar.'},{status:401});const origin=request.headers.get('origin');if(origin&&origin!==new URL(request.url).origin)return Response.json({error:'Origin mismatch'},{status:403});try{const raw=await request.text();if(raw.length>50000)return Response.json({error:'Too many saved items.'},{status:400});const input=JSON.parse(raw);if(!Array.isArray(input.saved)||!input.saved.every((s:unknown)=>typeof s==='string')||input.saved.length>2000||!Array.isArray(input.views)||input.views.length>30||!input.views.every((v:Record<string,unknown>)=>typeof v.id==='string'&&typeof v.name==='string'&&typeof v.query==='string'&&Array.isArray(v.tags)&&v.tags.every(t=>typeof t==='string')&&Array.isArray(v.categories)&&v.categories.every(c=>typeof c==='string')))return Response.json({error:'Invalid saved calendar.'},{status:400});await database().prepare('INSERT INTO user_preferences(user_id,payload) VALUES(?,?) ON CONFLICT(user_id) DO UPDATE SET payload=excluded.payload').bind(user.userId,JSON.stringify({saved:input.saved,views:input.views})).run();return Response.json({ok:true});}catch{return Response.json({error:'Your changes could not be saved. Please try again.'},{status:503});}}
+import {readAccount, authConfiguration} from '../../../lib/auth';
+import {isVerifiedBYUUser} from '../../../lib/account-policy.mjs';
+import {requireContributor} from '../../../lib/community-store.mjs';
+import {json, readJSON, requireSameOrigin, errorResponse, RequestError} from '../../../lib/http.mjs';
+export const dynamic = 'force-dynamic';
+const list = z.array(z.string().max(250));
+const preferenceSchema = z.object({saved: list.max(2000), views: z.array(z.object({id: z.string().max(100), name: z.string().trim().min(1).max(60), query: z.string().max(500), tags: list.max(50), categories: list.max(20)}).strict()).max(30)}).strict();
+
+export async function GET(request: Request) {
+  try {
+    const {user} = await readAccount(request);
+    if (!user || !isVerifiedBYUUser(user)) return json({saved: [], views: [], signedIn: false});
+    const row = await database().prepare('SELECT payload FROM user_preferences WHERE user_id=?').bind(user.id).first<{payload: string}>();
+    return json({...row ? JSON.parse(row.payload) : {saved: [], views: []}, signedIn: true});
+  } catch (error) { return errorResponse(error); }
+}
+
+export async function PUT(request: Request) {
+  try {
+    const user = requireContributor(await readAccount(request));
+    requireSameOrigin(request, authConfiguration().origin);
+    const result = preferenceSchema.safeParse(await readJSON(request, 50000));
+    if (!result.success) throw new RequestError(400, 'Invalid saved calendar.');
+    await database().prepare('INSERT INTO user_preferences(user_id,payload) VALUES(?,?) ON CONFLICT(user_id) DO UPDATE SET payload=excluded.payload').bind(user.id, JSON.stringify(result.data)).run();
+    return json({ok: true});
+  } catch (error) { return errorResponse(error); }
+}

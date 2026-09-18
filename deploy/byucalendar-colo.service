@@ -1,0 +1,15 @@
+[Unit]
+Description=BYU Calendar worker (wrangler local on 127.0.0.1:8788)
+After=network.target
+
+[Service]
+User=deploy
+WorkingDirectory=/home/deploy/byucalendar
+ExecStart=/usr/bin/node --import ./scripts/sites-env.mjs ./runtime/node_modules/wrangler/bin/wrangler.js dev --config dist/server/wrangler.json --env-file /home/deploy/byucalendar/.env.accounts --local --persist-to .wrangler/state --ip 127.0.0.1 --port 8788 --inspector-port 0
+Restart=always
+RestartSec=5
+Environment=PATH=/usr/bin:/bin
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target

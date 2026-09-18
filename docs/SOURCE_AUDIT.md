@@ -36,12 +36,18 @@ Club coverage includes Accounting Society, Women in Finance, Finance Society/Inv
 | [Beta Alpha Psi](https://bap.byu.edu/) | Redirects to an unavailable Wix site. Kept unconnected. |
 | [Marriott club directory](https://marriott.byu.edu/clubs/directory) | Redirects to Student Organizations, whose published events were captured above. |
 
-Handshake access is deferred at the user's request. Private AIS Slack, Instagram/Facebook, and member-only club announcements require their own authorized connectors or organizer feeds.
+## Handshake export reviewed and imported
+
+At the user's request, `Handshake/handshake_events_complete.json` was reviewed and imported on September 14, 2026. It contains 227 event IDs with titles, hosts, offset-bearing start/end timestamps, location fields, and credential-free Handshake event links. Dates span September 14, 2026 through March 18, 2027. No account credentials, attendees, or personal appointments were found. These are user-provided event listings; this is not a verified public or institution-wide feed, and the original capture time is not supplied.
+
+The snapshot adds 224 distinct calendar entries: two records match Mathematics listings, and two Dodge & Cox listings share the same normalized title and start. Both Handshake links are retained for that combined event. One Melaleuca entry has identical start/end times and retains an unknown end. Fourteen “Virtual / TBD” placeholders remain unknown attendance formats; 39 “To Be Determined” venues remain unconfirmed. Costs, food, and eligibility are not invented. The importer and source panel label this as an imported snapshot with no automatic refresh. Raw exports remain local and Git-ignored; only normalized listing fields are seeded.
+
+Private AIS Slack, Instagram/Facebook, and member-only club announcements require their own authorized connectors or organizer feeds.
 
 ## Data quality and ongoing updates
 
 - Live sources share the app's hourly refresh policy. The browser checks on opening and every five minutes while open. No closed-app scheduler is configured.
-- The Student Organizations source is a September 14 snapshot and is excluded from those refreshes. A published BYU club feed/API is the preferred next step for unattended updates.
+- The Student Organizations and Handshake sources are September 14 snapshots and are excluded from those refreshes. A published BYU club feed/API is the preferred next step for unattended updates.
 - Food/snack/drink filters require source evidence. A restaurant serving statement and “pizza and drinks provided” are recognized. Free food is separate from free admission.
 - Brightspot metadata occasionally contains bad end dates. A timed duration longer than 31 days is withheld and explained in the description; the real start and source link remain.
 - An individual source's counts may change or drop to zero as events pass. A reachable calendar with no future listings is distinct from a failed connection.

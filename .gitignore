@@ -30,6 +30,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+.dev.vars*
 
 # vercel
 .vercel
@@ -44,4 +45,9 @@ next-env.d.ts
 /.local-tooling/
 /outputs/
 /work/
+# Raw account exports stay local; only reviewed, normalized event listings enter the seed.
+/Handshake/
+# Generated flyers (rebuild with scripts/generate-flyer.py) and local scratch tooling.
+/output/
+/tmp/
 *.tsbuildinfo
