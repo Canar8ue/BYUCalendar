@@ -6,7 +6,7 @@ import {parseSearch,matchesEvent,exportICS,eventSlug,googleCalendarUrl,personalC
 import {listingLinks,eventPage,importSource,sameSite} from '../lib/source-import.mjs';
 import {parseClubSnapshot} from '../lib/club-snapshot.mjs';
 import {parseHandshakeSnapshot} from '../lib/handshake-snapshot.mjs';
-import {SOURCES,UNCONNECTED} from '../lib/catalog.mjs';
+import {SOURCES,UNCONNECTED,INTEREST_TAGS} from '../lib/catalog.mjs';
 const source={id:'test',name:'Test',url:'https://calendar.byu.edu',category:'Campus life'};
 const now=new Date('2026-09-14T18:00:00Z');
 const wrap=s=>'BEGIN:VCALENDAR\r\nVERSION:2.0\r\n'+s+'\r\nEND:VCALENDAR';
@@ -157,6 +157,28 @@ test('snapshot provenance footers split out of the displayed description',()=>{
  assert.deepEqual(splitDescriptionProvenance(''),{description:'',provenance:''});
 });
 
+test('performance listings are tagged and natural show searches reach them',()=>{
+ const dance=classify({title:'World of Dance (Matinee)',description:'Doors open 30 minutes before curtain.',location:'Richards Building',url:'https://calendar.byu.edu/world-of-dance',sourceId:'byu',sourceName:'BYU Events',category:'Arts & culture',start:'2026-09-19T20:00:00.000Z',end:'2026-09-19T22:00:00.000Z',allDay:false,cancelled:false,sourceUpdated:null});
+ assert.ok(dance.tags.includes('Performances'),'dance in the title is performance evidence');
+ const recital=classify({title:'Faculty Recital',description:'An evening of solo performances.',location:'Madsen Recital Hall',url:'',sourceId:'byu'});assert.ok(recital.tags.includes('Performances'));
+ const spectacular=classify({title:'BYU Spectacular',description:'',location:'Marriott Center',url:'',sourceId:'byu'});assert.ok(spectacular.tags.includes('Performances'));
+ const fair=classify({title:'STEM Career Fair',description:'Meet 40 employers with open internships.',location:'WSC Ballroom',url:'',sourceId:'byu'});assert.ok(!fair.tags.includes('Performances'));
+ const workshop=classify({title:'Resume Workshop',description:'This session shows you how to structure a resume.',location:'WSC',url:'',sourceId:'byu'});assert.ok(!workshop.tags.includes('Performances'),'description verbs like "shows" are not performance evidence');
+ // The user-reported regression: "shows this weekend" found nothing even with
+ // dance performances in inventory, because the listings carried no tag.
+ const parsed=parseSearch('shows this weekend',now);
+ assert.ok(parsed.tags.includes('Performances'));assert.deepEqual(parsed.words,[]);
+ assert.equal(parsed.start,'2026-09-19');assert.equal(parsed.end,'2026-09-20');
+ assert.ok(matchesEvent(dance,'shows this weekend',[],[],now));
+ const natural=parseSearch('I want to go to a ballet',now);
+ assert.ok(natural.tags.includes('Performances'));assert.deepEqual(natural.words,['ballet']);
+ const ballet=classify({title:'The Nutcracker',description:'The classic holiday ballet performed by the theatre ballet company.',location:'Harris Fine Arts Center',url:'',sourceId:'byu',start:'2026-12-05T02:00:00.000Z',end:'2026-12-05T04:00:00.000Z',allDay:false,cancelled:false,sourceUpdated:null});
+ assert.ok(matchesEvent(ballet,'I want to go to a ballet',[],[],now));
+ assert.ok(!matchesEvent(dance,'ballet',[],[],now),'a dance listing without the word stays out of a ballet search');
+ const concert=parseSearch('a concert after 5 pm',now);assert.ok(concert.tags.includes('Performances'));assert.deepEqual(concert.words,['concert']);assert.ok(concert.after===1020);
+ assert.ok(INTEREST_TAGS.includes('Performances'),'the tag is a selectable interest filter');
+});
+
 test('personal calendar handoff: platform kinds and Google template links',()=>{
  assert.equal(personalCalendarKind('Mozilla/5.0 (Linux; Android 15; Pixel 9) AppleWebKit/537.36',0),'google');
  assert.equal(personalCalendarKind('Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15',0),'apple');
@@ -174,7 +196,7 @@ test('personal calendar handoff: platform kinds and Google template links',()=>{
  assert.equal(parsed.searchParams.get('text'),'IS Career Night: Pizza & Panel');
  assert.equal(parsed.searchParams.get('location'),'TNRB 408');
  assert.ok(parsed.searchParams.get('details').includes('Source: https://events.byu.edu/is-night'));
- assert.ok(parsed.searchParams.get('details').includes('From BYU Calendar: https://byucalendar.com/?event=abc-123'));
+ assert.ok(parsed.searchParams.get('details').includes('From BYU Calendar: https://byucalendar.com/events/abc-123'));
  // All-day ends are exclusive in the stored model and in the template link.
  const allDay=new URL(googleCalendarUrl({id:'hol-1',title:'University Holiday',description:'',start:'2026-11-26',end:'2026-11-27',allDay:true,location:'',url:''}));
  assert.equal(allDay.searchParams.get('dates'),'20261126/20261127');

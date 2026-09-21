@@ -17,7 +17,7 @@ before(async () => {
     modules: ['index.js', ...readdirSync('dist/server', {recursive: true}).filter(path => path !== 'index.js' && /\.m?js$/.test(path))].map(path => ({type: 'ESModule', path: 'dist/server/' + path.replaceAll('\\', '/')})),
     compatibilityDate: '2026-05-15', compatibilityFlags: ['nodejs_compat'],
     d1Databases: ['DB'], assets: {directory: 'dist/client', routerConfig: {has_user_worker: true}},
-    bindings: {BETTER_AUTH_SECRET: 'isolated-worker-test-secret-not-for-production-123456789', BETTER_AUTH_URL: origin, RESEND_API_KEY: 'test-intercepted-no-network', AUTH_EMAIL_FROM: 'BYU Calendar <signin@auth.byucalendar.com>', RESEND_INBOUND_SECRET: inboundSecret, CALENDAR_ADMIN_EMAILS: 'reviewer@byu.edu'},
+    bindings: {BETTER_AUTH_SECRET: 'isolated-worker-test-secret-not-for-production-123456789', BETTER_AUTH_URL: origin, RESEND_API_KEY: 'test-intercepted-no-network', AUTH_EMAIL_FROM: 'BYU Calendar <signin@auth.byucalendar.com>', RESEND_INBOUND_SECRET: inboundSecret, CALENDAR_ADMIN_EMAILS: 'reviewer@byu.edu', SEARCH_ASSIST_API_KEY: 'test-assist-key'},
     outboundService: async request => {
       if (new URL(request.url).hostname === 'api.resend.com') {
         if (request.method === 'GET') return Response.json({text: 'Please delete my data from the calendar. Thanks, Citizen', html: '<p>Please delete my data.</p>'});
@@ -27,11 +27,21 @@ before(async () => {
         if (code) codes.set(body.to[0], code); else sent.push(body);
         return Response.json({id: 'test-email'});
       }
+      if (new URL(request.url).hostname === 'api.deepseek.com') {
+        const body = await request.json();
+        assert.equal(body.messages[0].role, 'system');
+        assert.ok(String(body.messages[0].content).includes('Respond with ONLY a JSON object'));
+        const query = body.messages[1].content;
+        const soon = new Date(Date.now() + 5 * 86400000).toISOString().slice(0, 10);
+        const answer = /unparseable/.test(query) ? 'Sorry, I cannot help with that.'
+          : JSON.stringify({summary: 'Ballet performances soon', tags: ['Performances'], categories: [], start: soon, end: soon, afterMinutes: null, words: ['ballet']});
+        return Response.json({choices: [{message: {role: 'assistant', content: '```json\n' + answer + '\n```'}}]});
+      }
       return new Response('External requests disabled in integration tests.', {status: 503});
     },
   });
   db = await mf.getD1Database('DB');
-  for (const file of ['0000_pink_scarlet_spider.sql', '0001_byu_accounts_community.sql', '0002_moderator_inbox.sql']) {
+  for (const file of ['0000_pink_scarlet_spider.sql', '0001_byu_accounts_community.sql', '0002_moderator_inbox.sql', '0003_usage_analytics.sql']) {
     const statements = readFileSync(new URL('../drizzle/' + file, import.meta.url), 'utf8').replaceAll('--> statement-breakpoint', '').split(';').map(s => s.trim()).filter(Boolean);
     await db.batch(statements.map(sql => db.prepare(sql)));
   }
@@ -88,7 +98,7 @@ async function login(email, password = 'worker-test-pass-123') {
 }
 
 test('the built Worker serves pages and enforces BYU permissions at every HTTP endpoint', async () => {
-  for (const path of ['/', '/signin', '/account', '/listings/new', '/moderation']) assert.equal((await request(path, null, '', {}, 'GET')).status, 200, path);
+  for (const path of ['/', '/signin', '/account', '/listings/new', '/moderation', '/moderation/analytics']) assert.equal((await request(path, null, '', {}, 'GET')).status, 200, path);
   const signedOut = await (await request('/api/account', null, '', {}, 'GET')).json();
   assert.equal(signedOut.user, null); assert.equal(signedOut.permissions.addListings, false);
   for (const path of ['/api/listings', '/api/listings/tags', '/api/listings/reports']) {
@@ -150,6 +160,67 @@ test('the served single-event ICS hands off to native calendar apps', async () =
   assert.match(body, new RegExp('UID:' + event.id));
   assert.equal((await request('/api/events/ics?id=does-not-exist', null, '', {}, 'GET')).status, 404);
   assert.equal((await request('/api/events/ics', null, '', {}, 'GET')).status, 404);
+});
+
+test('usage analytics record from the site only and summarize for moderators only', async () => {
+  const member = await login('analytics-member@student.byu.edu');
+  const reviewer = reviewerCookie || await login('reviewer@byu.edu');
+  assert.equal((await request('/api/analytics', {events: [{type: 'view', name: '/'}]}, '', {origin: 'https://evil.example', 'sec-fetch-site': 'cross-site'})).status, 403);
+  const beacon = await request('/api/analytics', {events: [{type: 'view', name: '/'}, {type: 'search', name: 'free food', detail: '0'}, {type: 'made-up', name: 'evil'}]});
+  assert.equal(beacon.status, 200);
+  assert.equal((await beacon.json()).recorded, 2);
+  const bot = await request('/api/analytics', {events: [{type: 'view', name: '/'}]}, '', {'user-agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://google.com/bot.html)'});
+  assert.equal((await bot.json()).recorded, 0, 'bot beacons are acknowledged but never stored');
+  const stored = await db.prepare("SELECT type,name,detail FROM analytics_events ORDER BY type").all();
+  assert.equal(stored.results.length, 2);
+  assert.equal(stored.results[0].type, 'search');
+  assert.equal((await request('/api/analytics', null, '', {}, 'GET')).status, 401, 'signed-out summary access is rejected');
+  assert.equal((await request('/api/analytics', null, member, {}, 'GET')).status, 403, 'non-moderator summary access is rejected');
+  const summary = await (await request('/api/analytics', null, reviewer, {}, 'GET')).json();
+  assert.ok(summary.totals.views30 >= 1);
+  assert.ok(summary.topSearches.some(s => s.name === 'free food' && s.zeros === 1));
+  assert.ok(Array.isArray(summary.sources) && summary.sources.length > 0);
+  assert.ok(summary.inventory.upcomingEvents > 0);
+  assert.equal(summary.community.accountsTotal >= 2, true);
+});
+
+test('server-rendered event pages expose Event structured data and 404 cleanly', async () => {
+  const calendar = await (await request('/api/events', null, '', {}, 'GET')).json();
+  const event = calendar.events.find(e => e.end && !e.allDay);
+  assert.ok(event, 'expected a timed event in the merged calendar');
+  const page = await request('/events/' + encodeURIComponent(event.id), null, '', {}, 'GET');
+  assert.equal(page.status, 200);
+  const html = await page.text();
+  assert.ok(html.includes('application/ld+json'), 'event page embeds JSON-LD');
+  assert.ok(html.includes('"@type":"Event"'), 'JSON-LD is a schema.org Event');
+  assert.ok(html.includes(event.title), 'event title renders');
+  assert.ok(html.includes('rel="canonical"') || html.includes("rel='canonical'"), 'canonical URL present');
+  assert.ok(html.includes('/?event='), 'links back into the live calendar');
+  assert.equal((await request('/events/does-not-exist-at-all', null, '', {}, 'GET')).status, 404);
+  // Browsing to a stale event id must not leak an error page.
+  const gone = await request('/events/does-not-exist-at-all', null, '', {}, 'GET');
+  assert.ok(!(await gone.text()).includes('stack'));
+});
+
+test('topic landing pages render live matches and unknown topics 404', async () => {
+  const topic = await request('/topics/free-food', null, '', {}, 'GET');
+  assert.equal(topic.status, 200);
+  const html = await topic.text();
+  assert.match(html, /Food provided/i);
+  assert.match(html, /href="\/topics\//);
+  assert.match(html, /Browse these in the live calendar/);
+  assert.equal((await request('/topics/definitely-not-a-topic', null, '', {}, 'GET')).status, 404);
+});
+
+test('the sitemap advertises core, topic, and event URLs', async () => {
+  const sitemap = await request('/sitemap.xml', null, '', {}, 'GET');
+  assert.equal(sitemap.status, 200);
+  const xml = await sitemap.text();
+  assert.match(xml, /<urlset/);
+  assert.match(xml, /https:\/\/byucalendar\.com\/<\/loc>/);
+  assert.match(xml, /\/topics\/free-food<\/loc>/);
+  assert.match(xml, /\/events\/[a-z0-9-]+<\/loc>/);
+  assert.doesNotMatch(xml, /\/signin|\/moderation|\/api\//);
 });
 
 test('the built Worker resets passwords through emailed codes and revokes old sessions', async () => {
@@ -248,4 +319,24 @@ test('the built Worker lets authors update and delete only their own listings', 
   assert.equal((await request('/api/listings/delete', {id}, authorCookie)).status, 200);
   assert.ok(!((await (await request('/api/events', null, '', {}, 'GET')).json()).events.some(e => e.id === id)));
   assert.ok(!(await (await request('/api/listings/mine', null, authorCookie, {}, 'GET')).json()).listings.some(e => e.id === id));
+});
+
+test('smart search interpretation is same-origin, model-backed, clamped, and cached', async () => {
+  const blocked = await request('/api/search/assist', {query: 'I want to go to a ballet'}, '', {origin: 'https://evil.example', 'sec-fetch-site': 'cross-site'});
+  assert.equal(blocked.status, 403);
+  assert.equal((await request('/api/search/assist', {query: '   '})).status, 400);
+  const assisted = await request('/api/search/assist', {query: 'I want to go to a ballet soon'});
+  assert.equal(assisted.status, 200, await assisted.clone().text());
+  const body = await assisted.json();
+  assert.equal(body.cached, false);
+  assert.deepEqual(body.intent.tags, ['Performances']);
+  assert.equal(body.intent.start, new Date(Date.now() + 5 * 86400000).toISOString().slice(0, 10));
+  assert.deepEqual(body.intent.words, ['ballet']);
+  assert.match(body.summary, /Ballet performances/);
+  // A repeated query is served from the cache without a second model call.
+  const repeat = await request('/api/search/assist', {query: 'I want to go to a ballet soon'});
+  assert.equal((await repeat.json()).cached, true);
+  // Garbage model output degrades to an honest 503 rather than empty filters.
+  const broken = await request('/api/search/assist', {query: 'unparseable phrase request'});
+  assert.equal(broken.status, 503);
 });

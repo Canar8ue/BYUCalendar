@@ -61,3 +61,11 @@ export const emailReplies = sqliteTable('email_replies', {
   subject: text('subject').notNull(), bodyText: text('body_text').notNull(),
   sentBy: text('sent_by').notNull(), sentAt: text('sent_at').notNull(),
 }, t => [index('email_replies_inbound_idx').on(t.inboundId)]);
+// Aggregate, cookieless usage analytics: no account ids, names, or IP addresses
+// are ever written here — only the action, coarse request context, and a day key.
+export const analyticsEvents = sqliteTable('analytics_events', {
+  id: integer('id').primaryKey({autoIncrement: true}),
+  ts: text('ts').notNull(), day: text('day').notNull(), type: text('type').notNull(),
+  name: text('name').notNull().default(''), detail: text('detail'),
+  country: text('country'), device: text('device'), referrer: text('referrer'),
+}, t => [index('analytics_day_idx').on(t.day, t.type), index('analytics_lookup_idx').on(t.type, t.name, t.day)]);

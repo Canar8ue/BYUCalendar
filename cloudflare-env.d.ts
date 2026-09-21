@@ -9,5 +9,8 @@ declare namespace Cloudflare {
     RESEND_INBOUND_SECRET?: string;
     CALENDAR_INBOX_ADDRESS?: string;
     CALENDAR_ADMIN_EMAILS?: string;
+    SEARCH_ASSIST_API_KEY?: string;
+    SEARCH_ASSIST_BASE_URL?: string;
+    SEARCH_ASSIST_MODEL?: string;
   }
 }

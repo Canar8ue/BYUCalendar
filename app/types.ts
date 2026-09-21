@@ -8,3 +8,7 @@ export type AccountState={user:AccountUser|null;emailReady:boolean;permissions:{
 export type ListingReport={id:string;eventId:string;reason:string;details:string;status:string;createdAt:string;hidden:boolean;event:CampusEvent};
 export type InboxReply={id:string;toAddress:string;subject:string;bodyText:string;sentBy:string;sentAt:string};
 export type InboxEmail={id:string;fromAddress:string;toAddress:string;subject:string;preview:string;bodyText:string;receivedAt:string;readAt:string|null;repliedAt:string|null;replies:InboxReply[]};
+export type AnalyticsNamedCount={name:string;count:number;zeros?:number};
+export type AnalyticsDay={day:string;views:number;searches:number;eventViews:number;exports:number};
+export type AnalyticsTotals={views7:number;views30:number;searches30:number;eventViews30:number;exports30:number;saves30:number;shares30:number};
+export type AnalyticsSummary={generatedAt:string;days:AnalyticsDay[];totals:AnalyticsTotals;topPages:AnalyticsNamedCount[];topSearches:AnalyticsNamedCount[];zeroResultSearches:AnalyticsNamedCount[];referrers:AnalyticsNamedCount[];countries:AnalyticsNamedCount[];devices:AnalyticsNamedCount[];sources:SourceStatus[];inventory:{totalEvents:number;upcomingEvents:number;byCategory:AnalyticsNamedCount[];topTags:AnalyticsNamedCount[];topLocations:AnalyticsNamedCount[];nextDays:{day:string;count:number}[]};community:{listings:number;communityTags:number;reportsOpen:number;reportsTotal:number;accountsTotal:number;accountsVerified:number;inboxTotal:number;inboxUnread:number}};

@@ -53,7 +53,7 @@ export default function ModeratorInboxPage() {
     <div className="eyebrow">COMMUNITY CARE</div>
     <h1>Message <span>inbox.</span></h1>
     <p className="account-description">Mail sent to {inboxAddress} by privacy requests and community members. Replies go out from the same address; messages stay private to administrators.</p>
-    <p className="moderator-nav"><a className="text-button" href="/moderation">Review reports</a><span aria-hidden>·</span><span className="moderator-nav-current">Message inbox</span></p>
+    <p className="moderator-nav"><a className="text-button" href="/moderation">Review reports</a><span aria-hidden>·</span><span className="moderator-nav-current">Message inbox</span><span aria-hidden>·</span><a className="text-button" href="/moderation/analytics">Usage analytics</a></p>
     {(accountError || error) && <p className="form-error" role="alert">{accountError || error}</p>}
     {!account && !accountError && <p>Loading your account…</p>}
     {account && !account.permissions.reviewReports && <p>This page is available to calendar administrators. <a className="text-button" href="/account">View your account</a></p>}

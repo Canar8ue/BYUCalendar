@@ -18,7 +18,7 @@ const mf = new Miniflare({
   bindings: {
     BETTER_AUTH_SECRET: randomBytes(32).toString('hex'), BETTER_AUTH_URL: 'http://127.0.0.1:8790',
     RESEND_API_KEY: 'local-sandbox-intercepted', AUTH_EMAIL_FROM: 'Local sandbox <test@example.invalid>',
-    CALENDAR_ADMIN_EMAILS: '',
+    CALENDAR_ADMIN_EMAILS: process.argv[3] || '',
   },
   outboundService: async request => {
     if (new URL(request.url).hostname === 'api.resend.com') {
@@ -33,7 +33,7 @@ const mf = new Miniflare({
 
 try {
   const db = await mf.getD1Database('DB');
-  for (const [table, file] of [['source_snapshots', '0000_pink_scarlet_spider.sql'], ['auth_user', '0001_byu_accounts_community.sql'], ['inbound_emails', '0002_moderator_inbox.sql']]) {
+  for (const [table, file] of [['source_snapshots', '0000_pink_scarlet_spider.sql'], ['auth_user', '0001_byu_accounts_community.sql'], ['inbound_emails', '0002_moderator_inbox.sql'], ['analytics_events', '0003_usage_analytics.sql']]) {
     if (await db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?").bind(table).first()) continue;
     const statements = readFileSync('drizzle/' + file, 'utf8').replaceAll('--> statement-breakpoint', '').split(';').map(s => s.trim()).filter(Boolean);
     await db.batch(statements.map(sql => db.prepare(sql)));

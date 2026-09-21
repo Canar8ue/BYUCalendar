@@ -42,14 +42,14 @@ export default function PrivacyPolicyPage() {
         <li><span><b>Account details.</b> If you create an account: your name, your BYU email address, and a hashed version of your password — never the password itself. A signed session cookie keeps you signed in.</span></li>
         <li><span><b>Your saved items.</b> Bookmarked events and saved searches, tied to your account.</span></li>
         <li><span><b>Your contributions.</b> Listings and tags you publish are public but shown without your name or email. Reports you submit are private and visible only to site administrators.</span></li>
-        <li><span><b>Usage analytics.</b> How the site is used — pages and events viewed, searches, approximate region, browser and device type, and the site that sent you here. We use this in aggregate to decide what to improve.</span></li>
+        <li><span><b>Usage analytics.</b> How the site is used — pages and events viewed, searches, exports, approximate region, browser and device type, and the site that sent you here. These are aggregate counts built in-house: analytics use no cookies, never record your name, email, or IP address, and are kept for 180 days. We use them to decide what to improve.</span></li>
         <li><span><b>Server logs.</b> Standard request logs (IP address, time, requested page) kept for security and reliability.</span></li>
       </ul>
       <p>You can browse the entire calendar, search, and download events without an account and without signing in.</p>
     </Section>
 
     <Section index="03 · ANALYTICS" title="How we measure usage">
-      <p>We use analytics to answer simple questions: which events and features are people actually looking for? The measurements are aggregate usage counts — they are not used to build advertising profiles, and they are never sold.</p>
+      <p>We use analytics to answer simple questions: which events and features are people actually looking for? The measurements are built-in aggregate usage counts — cookieless, free of names, emails, and IP addresses, and pruned after 180 days. They are not used to build advertising profiles, and they are never sold.</p>
       <p>We do not use analytics to follow you to other websites or apps, and we do not combine analytics with advertising networks.</p>
     </Section>
 
@@ -68,7 +68,7 @@ export default function PrivacyPolicyPage() {
         <li><span><b>Hosting and network.</b> Our hosting provider and Cloudflare (DNS and site delivery) handle traffic to the site.</span></li>
         <li><span><b>Email delivery.</b> Resend sends verification and password-reset emails to your address.</span></li>
         <li><span><b>Typography.</b> Google Fonts serves the site&apos;s fonts; your browser requests them directly.</span></li>
-        <li><span><b>Analytics.</b> Our analytics provider measures the usage described above.</span></li>
+        <li><span><b>Analytics.</b> Measured in-house by the cookieless system described above — no third-party analytics service receives this data.</span></li>
       </ul>
       <p>We may also disclose information when the law requires it. We do not otherwise share personal data.</p>
     </Section>
@@ -78,7 +78,7 @@ export default function PrivacyPolicyPage() {
     </Section>
 
     <Section index="07 · RETENTION" title="Data retention and security">
-      <p>Account data is kept while your account is active; deletion requests remove it. Listings and tags stay until their author or an administrator removes them. Logs and analytics are kept only for a limited period. Passwords are stored only as hashes, resetting a password signs out every session, and all traffic is encrypted with HTTPS.</p>
+      <p>Account data is kept while your account is active; deletion requests remove it. Listings and tags stay until their author or an administrator removes them. Analytics rows expire automatically after 180 days, and server logs are kept only for a limited period. Passwords are stored only as hashes, resetting a password signs out every session, and all traffic is encrypted with HTTPS.</p>
     </Section>
 
     <Section index="08 · YOUR RIGHTS" title="Your rights in Utah">
