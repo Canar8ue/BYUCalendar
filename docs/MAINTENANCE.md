@@ -51,6 +51,13 @@ key separately before considering account operations fully remediated.
 
 ### 3D campus map assets and matching
 
+September 22 local addition: `valley_lod.glb` and `valley-context.js` provide
+optional distant scenery after the campus is ready (38,268 bytes, 3,932
+triangles, one draw call, no textures). Keep these files when publishing the
+static map. See [terrain maintenance](CAMPUS_TERRAIN.md) for source data,
+rebuilding, and the 50 KB / 5,000-triangle budget. The campus GLB/catalog pair
+is unchanged; the scenery has no picking IDs and does not run an idle loop.
+
 Deployed September 16, 2026 to byucalendar.com. Search/filter changes automatically frame matching pins. Building selection opens the event dialog only after the camera reports its completed flight; cancelled flights do not open stale dialogs.
 
 The secondary Map view uses `app/campus-map.tsx` and the isolated, same-origin Three.js viewer in `public/campus/`. The GLB and `coordinates.json` are a paired export from the user's BYUCampus Blender project; replace both together. Retain `ATTRIBUTION.md` and vendor licenses. Rebuild the lookup with `node scripts/index-campus-locations.mjs` after replacing coordinates. The checked-in lookup groups building parts and excludes planned/unverified features. Venue aliases belong in `lib/campus-map.mjs`; add only aliases with known campus anchors, then run `tests/campus-map.test.mjs`.

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {MeshoptDecoder} from './vendor/meshopt_decoder.module.js';
+import {loadValleyContext} from './valley-context.js';
 
 const stage=document.getElementById('map'),labels=document.getElementById('labels'),loading=document.getElementById('loading');
 const send=data=>parent.postMessage({channel:'byu-calendar-map',...data},location.origin);
@@ -128,4 +129,5 @@ try{
   const [gltf,catalog]=await Promise.all([loader.loadAsync('./campus_web.glb'),fetch('./coordinates.json').then(r=>{if(!r.ok)throw new Error('Location data unavailable');return r.json();})]);
   model=gltf.scene;features=catalog.features;scene.add(model);model.updateMatrixWorld(true);model.traverse(o=>{if(o.isMesh&&o.geometry.getAttribute('_feature_id'))pickMeshes.push(o);});
   ready=true;loading.hidden=true;reset();buildPins();send({type:'ready'});
+  loadValleyContext(loader,scene,camera,invalidate);
 }catch(error){loading.hidden=false;loading.textContent='The 3D map could not load. You can still browse locations and events below.';send({type:'error'});console.error(error);}

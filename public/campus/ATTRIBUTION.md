@@ -6,7 +6,13 @@
 - Original GLB metadata identified building data dated May 31, 2026 and context data dated June 1, 2026. An additional core-campus OSM extract was retrieved September 15, 2026 for landmark positions and notes.
 - Terrain provenance in the supplied GLB is [USGS 3D Elevation Program (3DEP)](https://www.usgs.gov/3d-elevation-program). The existing terrain was retained. Its specific DEM acquisition/version and vertical datum were not independently verified.
 
+### September 22, 2026 distant web terrain
+
+`valley_lod.glb` uses a separate [USGS 3DEP elevation-service export](https://elevation.nationalmap.gov/arcgis/rest/services/3DEPElevation/ImageServer), retrieved September 22, 2026, at 245 × 245 samples across UTM zone 12N bounds 414000, 4425000, 475000, 4486000 (about 249 m per sample). It is simplified and blended into the original campus edge for visual context. Lake coloration is a generalized low-elevation basin, not a surveyed shoreline. The cached raster and build recipe remain in the BYUCampus source project's `audit/valley/` and `scripts/` directories; visitors receive only the small derived mesh.
+
 ## BYU reference data
+
+The web hillside Y uses the [OpenStreetMap mapped outline, way 81106082](https://www.openstreetmap.org/way/81106082), retrieved September 22, 2026 (version 11), with the OSM attribution and ODbL terms above. It is draped onto the simplified terrain as white geometry, intentionally enlarged 2.6×, offset 120 m north and widened another 30% across its stem for appearance. [BYU's description of Y Mountain](https://speeches.byu.edu/talks/michael-a-dunn/why-mountains/) provides landmark context. The delivered letter is stylized, not an exact geographic footprint.
 
 - [BYU campus map](https://map.byu.edu/).
 - [BYU Campus Buildings ArcGIS layer](https://services.arcgis.com/FvF9MZKp3JWPrSkg/arcgis/rest/services/BYU_Campus_Buildings/FeatureServer/0), used to reconcile supported building names and codes.
