@@ -2,7 +2,7 @@
 // Cookieless usage beacons: fire-and-forget, same-origin POSTs that never
 // carry account identifiers. Failures are silent — analytics must never
 // surface in the UI or block a user action.
-export type AnalyticsEvent = {type: 'view' | 'search' | 'event_view' | 'export' | 'save' | 'share' | 'view_switch'; name?: string; detail?: string};
+export type AnalyticsEvent = {type: 'view' | 'search' | 'event_view' | 'export' | 'save' | 'share' | 'view_switch' | 'directions'; name?: string; detail?: string};
 
 export function track(event: AnalyticsEvent) {
   try {

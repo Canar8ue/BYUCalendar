@@ -49,6 +49,13 @@ export const listingReports = sqliteTable('listing_reports', {
 export const listingModeration = sqliteTable('listing_moderation', {
   eventId: text('event_id').primaryKey(), hidden: integer('hidden', {mode: 'boolean'}).notNull(),
   reviewedBy: text('reviewed_by').notNull().references(() => authUser.id), updatedAt: text('updated_at').notNull(),
+  snapshot: text('snapshot'),
+});
+// Moderator corrections for source listings: the patch is layered over the
+// merged calendar at read time so source refreshes cannot revert it.
+export const eventOverrides = sqliteTable('event_overrides', {
+  eventId: text('event_id').primaryKey(), patch: text('patch').notNull(),
+  reviewedBy: text('reviewed_by').notNull().references(() => authUser.id), updatedAt: text('updated_at').notNull(),
 });
 export const inboundEmails = sqliteTable('inbound_emails', {
   id: text('id').primaryKey(), fromAddress: text('from_address').notNull(), toAddress: text('to_address').notNull(),

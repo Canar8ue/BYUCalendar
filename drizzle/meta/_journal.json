@@ -29,6 +29,13 @@
       "when": 1789721191350,
       "tag": "0003_usage_analytics",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1790026804209,
+      "tag": "0004_event_moderation",
+      "breakpoints": true
     }
   ]
 }

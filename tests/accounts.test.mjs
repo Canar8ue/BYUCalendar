@@ -8,7 +8,7 @@ import * as schema from '../db/schema.ts';
 import {createAccountAuth, handleAccountAuth} from '../lib/auth-core.mjs';
 import {normalizeBYUEmail, permissionsFor, safeReturnTo} from '../lib/account-policy.mjs';
 import {parseListing, addCommunityData} from '../lib/community.mjs';
-import {publishListing, updateListing, deleteListing, readMyListings, publishTag, submitReport, readReports, reviewReport, communityCalendar, consumeQuota} from '../lib/community-store.mjs';
+import {publishListing, updateListing, deleteListing, readMyListings, publishTag, submitReport, readReports, reviewReport, moderateEvent, readModerationInventory, communityCalendar, consumeQuota} from '../lib/community-store.mjs';
 import {readJSON, requireSameOrigin} from '../lib/http.mjs';
 import {matchesEvent, exportICS} from '../lib/search.mjs';
 
@@ -20,7 +20,7 @@ const mail = new Map(); let ip = 1;
 before(async () => {
   mf = new Miniflare({modules: true, script: 'export default {fetch(){return new Response("test");}}', compatibilityDate: '2026-05-01', d1Databases: ['DB']});
   db = await mf.getD1Database('DB');
-  for (const file of ['0000_pink_scarlet_spider.sql', '0001_byu_accounts_community.sql']) {
+  for (const file of ['0000_pink_scarlet_spider.sql', '0001_byu_accounts_community.sql', '0004_event_moderation.sql']) {
     const statements = readFileSync(new URL('../drizzle/' + file, import.meta.url), 'utf8').replaceAll('--> statement-breakpoint', '').split(';').map(s => s.trim()).filter(Boolean);
     await db.batch(statements.map(sql => db.prepare(sql)));
   }
@@ -270,6 +270,51 @@ test('reports are private, deduplicated, and actionable only by reviewers', asyn
   assert.ok(await find(event.id));
   await reviewReport(db, admin.account, {id: report.id, action: 'clear-tags'});
   assert.deepEqual((await find(event.id)).communityTags, []);
+});
+
+test('moderators edit and delete any listing; source corrections survive read time', async () => {
+  const sourceEvents = [{id: 'test-src-1', title: 'Seminar on foundations', description: 'Weekly department seminar.', start: tomorrow() + 'T18:00:00.000Z', end: null, allDay: false, location: 'Zoom', url: 'https://math.byu.edu/', sourceId: 'math', sourceName: 'Mathematics', category: 'Academic', tags: ['Online'], food: null, snacks: null, drinks: null, free: null, audience: null, format: 'Online', cancelled: false, sourceUpdated: null}];
+  const find = async id => (await communityCalendar(db, sourceEvents)).find(e => e.id === id);
+  await db.prepare("INSERT INTO source_snapshots (id,payload,last_success,lock_until) VALUES (?,?,'2026-09-21T00:00:00Z',0) ON CONFLICT(id) DO UPDATE SET payload=excluded.payload").bind('test-src', JSON.stringify(sourceEvents)).run();
+  const memberListing = await publishListing(db, member.account, listing());
+  // Moderation powers fail closed for ordinary members.
+  await assert.rejects(moderateEvent(db, member.account, {action: 'delete', id: memberListing.id}), e => e.status === 403);
+  await assert.rejects(readModerationInventory(db, member.account), e => e.status === 403);
+  // A moderator edits a member's community listing through the full form.
+  await moderateEvent(db, admin.account, {action: 'update', id: memberListing.id, title: 'Moderated showcase', organizer: 'Campus builders', description: 'Meet students and see their latest projects. Moderator corrected.', start: tomorrow() + 'T18:00', end: tomorrow() + 'T19:00', allDay: false, category: 'Campus life', location: 'TNRB 101', url: 'https://clubs.byu.edu/'});
+  assert.equal((await find(memberListing.id)).title, 'Moderated showcase');
+  // A moderator adds a location to a source listing that had only a Zoom link.
+  await moderateEvent(db, admin.account, {action: 'update', id: 'test-src-1', location: 'TNRB 240', description: 'Weekly department seminar, now in person.'}, find);
+  const corrected = (await communityCalendar(db, sourceEvents)).find(e => e.id === 'test-src-1');
+  assert.equal(corrected.location, 'TNRB 240');
+  assert.equal(corrected.format, 'In person');
+  assert.ok(corrected.tags.includes('In person') && !corrected.tags.includes('Online'));
+  assert.equal(corrected.overridden, true);
+  let inventoryData = await readModerationInventory(db, admin.account);
+  assert.equal(inventoryData.overrides.find(o => o.id === 'test-src-1').location, 'TNRB 240');
+  // Deleting a source listing hides it durably and records a snapshot for display.
+  await moderateEvent(db, admin.account, {action: 'delete', id: 'test-src-1'}, find);
+  assert.equal(await find('test-src-1'), undefined);
+  inventoryData = await readModerationInventory(db, admin.account);
+  assert.equal(inventoryData.hidden.find(h => h.id === 'test-src-1').title, 'Seminar on foundations');
+  // Restoring brings the hidden listing back with its correction still applied.
+  await moderateEvent(db, admin.account, {action: 'restore', id: 'test-src-1'});
+  assert.equal((await communityCalendar(db, sourceEvents)).find(e => e.id === 'test-src-1').location, 'TNRB 240');
+  // Reverting the correction returns the untouched source text.
+  await moderateEvent(db, admin.account, {action: 'revert', id: 'test-src-1'});
+  assert.equal((await communityCalendar(db, sourceEvents)).find(e => e.id === 'test-src-1').location, 'Zoom');
+  // Community deletions remain a full cascade.
+  await moderateEvent(db, admin.account, {action: 'delete', id: memberListing.id});
+  assert.equal(await find(memberListing.id), undefined);
+  for (const table of ['community_tags', 'listing_reports', 'listing_moderation']) {
+    const left = await db.prepare(`SELECT COUNT(*) c FROM ${table} WHERE event_id=?`).bind(memberListing.id).first();
+    assert.equal(left.c, 0, table);
+  }
+  // Validation: corrections must change a known field and use real vocabulary.
+  await assert.rejects(moderateEvent(db, admin.account, {action: 'update', id: 'test-src-1'}, find), e => e.status === 400);
+  await assert.rejects(moderateEvent(db, admin.account, {action: 'update', id: 'test-src-1', category: 'Bogus'}, find), e => e.status === 400);
+  await assert.rejects(moderateEvent(db, admin.account, {action: 'update', id: 'test-src-1', url: 'http://insecure.example'}, find), e => e.status === 400);
+  await assert.rejects(moderateEvent(db, admin.account, {action: 'delete', id: 'test-src-unknown'}, find), e => e.status === 404);
 });
 
 test('date validation uses Mountain Time, inclusive all-day form ends, and rejects invalid and ambiguous times', () => {

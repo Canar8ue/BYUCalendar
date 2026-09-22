@@ -41,7 +41,7 @@ before(async () => {
     },
   });
   db = await mf.getD1Database('DB');
-  for (const file of ['0000_pink_scarlet_spider.sql', '0001_byu_accounts_community.sql', '0002_moderator_inbox.sql', '0003_usage_analytics.sql']) {
+  for (const file of ['0000_pink_scarlet_spider.sql', '0001_byu_accounts_community.sql', '0002_moderator_inbox.sql', '0003_usage_analytics.sql', '0004_event_moderation.sql']) {
     const statements = readFileSync(new URL('../drizzle/' + file, import.meta.url), 'utf8').replaceAll('--> statement-breakpoint', '').split(';').map(s => s.trim()).filter(Boolean);
     await db.batch(statements.map(sql => db.prepare(sql)));
   }
@@ -339,4 +339,36 @@ test('smart search interpretation is same-origin, model-backed, clamped, and cac
   // Garbage model output degrades to an honest 503 rather than empty filters.
   const broken = await request('/api/search/assist', {query: 'unparseable phrase request'});
   assert.equal(broken.status, 503);
+});
+
+test('moderators correct, hide, and restore source listings over HTTP', async () => {
+  const pick = async () => (await (await request('/api/events', null, '', {}, 'GET')).json()).events.find(e => !e.community && e.location);
+  const target = await pick();
+  assert.ok(target, 'expected a source listing with a location in the merged calendar');
+  // Members cannot use the moderation endpoint (an earlier test signs the shared member out).
+  const plainMember = await login('plain-member@byu.edu');
+  assert.equal((await request('/api/moderation/events', {action: 'update', id: target.id, location: 'WSC 101'}, plainMember)).status, 403);
+  assert.equal((await request('/api/moderation/events', {action: 'delete', id: target.id}, plainMember)).status, 403);
+  // A moderator adds a campus location; the merged calendar reflects it read-time.
+  const corrected = await request('/api/moderation/events', {action: 'update', id: target.id, location: 'Tanner Building 240'}, reviewerCookie);
+  assert.equal(corrected.status, 200, await corrected.clone().text());
+  const correctedEvent = (await (await request('/api/events', null, '', {}, 'GET')).json()).events.find(e => e.id === target.id);
+  assert.equal(correctedEvent.location, 'Tanner Building 240');
+  assert.equal(correctedEvent.overridden, true);
+  // The inventory lists the correction for the review page.
+  let inv = await (await request('/api/moderation/events', null, reviewerCookie, {}, 'GET')).json();
+  assert.ok(inv.overrides.some(o => o.id === target.id && o.location === 'Tanner Building 240'));
+  // Hiding removes the listing from the feed but keeps it restorable with its title.
+  assert.equal((await request('/api/moderation/events', {action: 'delete', id: target.id}, reviewerCookie)).status, 200);
+  assert.ok(!((await (await request('/api/events', null, '', {}, 'GET')).json()).events.some(e => e.id === target.id)));
+  inv = await (await request('/api/moderation/events', null, reviewerCookie, {}, 'GET')).json();
+  const hiddenRow = inv.hidden.find(h => h.id === target.id);
+  assert.ok(hiddenRow && hiddenRow.title);
+  assert.equal((await request('/api/moderation/events', {action: 'restore', id: target.id}, reviewerCookie)).status, 200);
+  assert.ok((await (await request('/api/events', null, '', {}, 'GET')).json()).events.some(e => e.id === target.id));
+  // Reverting the correction restores the source location.
+  assert.equal((await request('/api/moderation/events', {action: 'revert', id: target.id}, reviewerCookie)).status, 200);
+  const reverted = (await (await request('/api/events', null, '', {}, 'GET')).json()).events.find(e => e.id === target.id);
+  assert.equal(reverted.location, target.location);
+  assert.ok(!reverted.overridden);
 });

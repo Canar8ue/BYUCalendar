@@ -7,6 +7,8 @@ import {listingLinks,eventPage,importSource,sameSite} from '../lib/source-import
 import {parseClubSnapshot} from '../lib/club-snapshot.mjs';
 import {parseHandshakeSnapshot} from '../lib/handshake-snapshot.mjs';
 import {SOURCES,UNCONNECTED,INTEREST_TAGS} from '../lib/catalog.mjs';
+import {applyEventOverrides} from '../lib/catalog.mjs';
+import {takeMeThereUrl} from '../lib/campus-map.mjs';
 const source={id:'test',name:'Test',url:'https://calendar.byu.edu',category:'Campus life'};
 const now=new Date('2026-09-14T18:00:00Z');
 const wrap=s=>'BEGIN:VCALENDAR\r\nVERSION:2.0\r\n'+s+'\r\nEND:VCALENDAR';
@@ -205,4 +207,50 @@ test('personal calendar handoff: platform kinds and Google template links',()=>{
  const unsafe=googleCalendarUrl({id:'x',title:'Unsafe',description:'',start:'2026-09-18T22:00:00.000Z',end:null,allDay:false,location:'',url:'javascript:alert(1)'});
  assert.equal(new URL(unsafe).searchParams.get('details').includes('Source:'),false);
  assert.equal(eventSlug('IS Career Night: Pizza & Panel!'),'is-career-night-pizza-panel');
+});
+
+test('"Take me there" hands venues to the platform map app with a Provo destination',()=>{
+ const desktop='Mozilla/5.0 (Windows NT 10.0; Win64; x64)';
+ const iphone='Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)';
+ // A campus building code resolves to the full building name and university.
+ const url=new URL(takeMeThereUrl({location:'TNRB 240',format:null},desktop,0));
+ assert.equal(url.origin,'https://www.google.com');
+ assert.equal(url.pathname,'/maps/dir/');
+ assert.equal(url.searchParams.get('destination'),'N. Eldon Tanner Building, Brigham Young University, Provo, UT');
+ // Apple devices get Apple Maps; iPadOS masquerades as Macintosh with touch.
+ assert.equal(new URL(takeMeThereUrl({location:'WSC 101',format:null},iphone,0)).origin,'https://maps.apple.com');
+ assert.equal(new URL(takeMeThereUrl({location:'WSC 101',format:null},'Mozilla/5.0 (Macintosh)',3)).origin,'https://maps.apple.com');
+ // Off-campus venues keep their text when a city is present and gain one when not.
+ assert.equal(decodeURIComponent(takeMeThereUrl({location:'Business Career Center, Provo',format:'In person'},desktop,0)).includes('Business Career Center, Provo'),true);
+ assert.equal(decodeURIComponent(takeMeThereUrl({location:'Village Chapel',format:'In person'},desktop,0)).includes('Village Chapel, Provo, UT'),true);
+ // Virtual, placeholder, and linked locations never produce directions.
+ for(const location of ['Virtual / TBD','To Be Determined','Zoom link in description','https://meet.google.com/xyz','']) assert.equal(takeMeThereUrl({location,format:null},desktop,0),null);
+ assert.equal(takeMeThereUrl({location:'WSC 101',format:'Online'},desktop,0),null);
+ // Salt Lake locations must not be mislabeled with Provo.
+ const saltLake=takeMeThereUrl({location:'BYU Salt Lake Center',format:'In person'},desktop,0);
+ assert.ok(saltLake.includes('BYU%20Salt%20Lake%20Center'));
+ assert.ok(!saltLake.includes('Provo'));
+});
+
+test('moderator overrides patch events at read time and re-derive attendance format',()=>{
+ const online={id:'byu-1',title:'Weekly seminar',description:'Seminar talk with guests.',start:'2026-09-24T18:00:00.000Z',end:null,allDay:false,location:'Zoom',url:'https://events.byu.edu/x',sourceId:'byu',sourceName:'BYU Events',category:'Academic',tags:['Online'],food:null,snacks:null,drinks:null,free:null,audience:null,format:'Online',cancelled:false,sourceUpdated:null};
+ // Unrelated events pass through untouched; unknown ids never match.
+ assert.equal(applyEventOverrides([online],[])[0],online);
+ assert.deepEqual(applyEventOverrides([online],[{id:'other',patch:{},at:null}])[0],online);
+ // Adding a real room flips the attendance format and its tags.
+ const [patched]=applyEventOverrides([online],[{id:'byu-1',patch:{location:'TNRB 240'},at:'2026-09-21T18:00:00.000Z'}]);
+ assert.equal(patched.location,'TNRB 240');
+ assert.equal(patched.format,'In person');
+ assert.ok(patched.tags.includes('In person')&&!patched.tags.includes('Online'));
+ assert.equal(patched.overridden,true);
+ assert.equal(patched.moderatedAt,'2026-09-21T18:00:00.000Z');
+ // Title and description corrections apply literally; clearing a location works.
+ const [retitled]=applyEventOverrides([online],[{id:'byu-1',patch:{title:'Distinguished seminar',description:''},at:null}]);
+ assert.equal(retitled.title,'Distinguished seminar');
+ assert.equal(retitled.description,'');
+ assert.equal(retitled.format,'Online');
+ const [cleared]=applyEventOverrides([online],[{id:'byu-1',patch:{location:''},at:null}]);
+ assert.equal(cleared.location,'');
+ assert.equal(cleared.format,null);
+ assert.ok(!cleared.tags.includes('Online')&&!cleared.tags.includes('In person'));
 });

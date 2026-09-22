@@ -53,7 +53,7 @@ export default function ModeratorAnalyticsPage(){
    <div className="stat-grid">
     <div className="stat-card"><span>VIEWS · 7 DAYS</span><b>{d.totals.views7.toLocaleString()}</b><small>{d.totals.views30.toLocaleString()} in 30 days</small></div>
     <div className="stat-card"><span>SEARCHES · 30 DAYS</span><b>{d.totals.searches30.toLocaleString()}</b><small>{d.zeroResultSearches.length} found nothing</small></div>
-    <div className="stat-card"><span>EVENT PAGES · 30 DAYS</span><b>{d.totals.eventViews30.toLocaleString()}</b><small>detail dialog opens</small></div>
+    <div className="stat-card"><span>EVENT PAGES · 30 DAYS</span><b>{d.totals.eventViews30.toLocaleString()}</b><small>detail dialog opens · {d.totals.directions30.toLocaleString()} map directions</small></div>
     <div className="stat-card"><span>EXPORTS · 30 DAYS</span><b>{d.totals.exports30.toLocaleString()}</b><small>{d.totals.saves30.toLocaleString()} saves · {d.totals.shares30.toLocaleString()} shares</small></div>
    </div>
 

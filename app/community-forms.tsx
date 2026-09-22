@@ -45,14 +45,14 @@ function formEnd(event: CampusEvent): string {
   return event.allDay ? new Date(Date.parse(event.end) - 86400000).toISOString().slice(0, 10) : civilMountainTime.format(new Date(event.end)).replace(' ', 'T');
 }
 
-export function EditListingForm({event, onComplete}: {event: CampusEvent; onComplete: (message: string) => Promise<void>}) {
+export function EditListingForm({event, onComplete, moderator}: {event: CampusEvent; onComplete: (message: string) => Promise<void>; moderator?: boolean}) {
   const [busy, setBusy] = useState(false), [error, setError] = useState(''), [allDay, setAllDay] = useState(event.allDay);
   async function submit(form: HTMLFormElement) {
     const values = new FormData(form);
     setBusy(true); setError('');
     try {
-      await postJSON('/api/listings/update', {id: event.id, ...Object.fromEntries(values), allDay});
-      await onComplete('Your listing is updated.');
+      await postJSON(moderator ? '/api/moderation/events' : '/api/listings/update', moderator ? {action: 'update', id: event.id, ...Object.fromEntries(values), allDay} : {id: event.id, ...Object.fromEntries(values), allDay});
+      await onComplete(moderator ? 'The listing is updated.' : 'Your listing is updated.');
     } catch (err) { setError(err instanceof Error ? err.message : 'Could not update your listing.'); setBusy(false); }
   }
   return <form className="community-form" onSubmit={e => {e.preventDefault(); void submit(e.currentTarget);}}><fieldset disabled={busy}>
@@ -66,6 +66,31 @@ export function EditListingForm({event, onComplete}: {event: CampusEvent; onComp
     <label>Event or organizer link<input name="url" type="url" pattern="https://.*" required maxLength={2000} defaultValue={event.url}/><small>Link to the announcement or organizer so people can check the details.</small></label>
     {error && <p className="form-error" role="alert">{error}</p>}
     <button className="primary-button" type="submit">{busy ? 'Saving…' : 'Save changes'}<ArrowRight size={16}/></button>
+  </fieldset></form>;
+}
+
+// Moderator corrections for source listings: the five correctable fields are
+// stored as a read-time override patch, so a source refresh cannot revert
+// them. Dates are intentionally absent — moving an occurrence belongs to the
+// source calendar that owns the event.
+export function ModeratorEditForm({event, onComplete}: {event: CampusEvent; onComplete: (message: string) => Promise<void>}) {
+  const [busy, setBusy] = useState(false), [error, setError] = useState('');
+  async function submit(form: HTMLFormElement) {
+    const values = new FormData(form);
+    setBusy(true); setError('');
+    try {
+      await postJSON('/api/moderation/events', {action: 'update', id: event.id, title: values.get('title'), category: values.get('category'), location: values.get('location'), description: values.get('description'), url: values.get('url')});
+      await onComplete('The listing is corrected.');
+    } catch (err) { setError(err instanceof Error ? err.message : 'Could not update the listing.'); setBusy(false); }
+  }
+  return <form className="community-form" onSubmit={e => {e.preventDefault(); void submit(e.currentTarget);}}><fieldset disabled={busy}>
+    <label>Event title<input name="title" required minLength={3} maxLength={160} defaultValue={event.title}/></label>
+    <div className="form-two-columns"><label>Category<select name="category" defaultValue={event.category}>{CATEGORIES.map(c => <option key={c.id}>{c.id}</option>)}</select></label><label>Location<input name="location" maxLength={240} defaultValue={event.location} placeholder="Building and room; leave empty if unknown"/></label></div>
+    <label>Description<textarea name="description" maxLength={5000} rows={5} defaultValue={event.description}/><small>Keep the source description unless it needs a correction; clearing it removes the text here.</small></label>
+    <label>Event or organizer link<input name="url" type="url" pattern="https://.*" required maxLength={2000} defaultValue={event.url}/></label>
+    {error && <p className="form-error" role="alert">{error}</p>}
+    <p className="account-notice">Corrections apply to BYU Calendar only and survive source refreshes. The connected source keeps its original text, and Review reports can revert the correction.</p>
+    <button className="primary-button" type="submit">{busy ? 'Saving…' : 'Save correction'}<ArrowRight size={16}/></button>
   </fieldset></form>;
 }
 

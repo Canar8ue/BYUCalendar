@@ -17,6 +17,7 @@ Visitors can browse and export without an account. `/signin` accepts only exact 
 | Add a tag and explanatory note | A verified BYU account; publishes immediately |
 | Report a listing | A verified BYU account; report stays private |
 | Review reports, hide/restore listings, remove community tags | A verified BYU account explicitly listed in `CALENDAR_ADMIN_EMAILS` |
+| Edit, delete, or correct any listing (September 21, 2026, pending deploy) | The same `CALENDAR_ADMIN_EMAILS` moderators. Community submissions are edited or cascade-deleted in place; source events take a read-time correction patch (`event_overrides`, so refreshes cannot revert it) or a durable hide recorded with a display snapshot. Hidden and corrected listings are listed on the moderation page with Restore and Revert buttons. |
 | Read and reply to the privacy message inbox | The same `CALENDAR_ADMIN_EMAILS` moderators |
 
 Community listings carry a community label and organizer name. Community tag notes are public and shown separately from source-provided tags. Adding a food/admission tag does not rewrite the original source facts. Refreshing external feeds preserves community listings, tags, and moderation decisions. Reports include an event snapshot so reviewers can act even if an external source changes. Reports do not automatically hide events.
@@ -61,7 +62,7 @@ With missing email settings, the page clearly says verification is coming soon a
 
 ## Database and release steps
 
-Migration `drizzle/0001_byu_accounts_community.sql` adds authentication, quotas, community content, and report/moderation tables. `drizzle/0002_moderator_inbox.sql` (September 18, 2026) adds the `inbound_emails` and `email_replies` tables. They do not replace source snapshots or preferences. Existing installations need 0001 followed by 0002; new databases need 0000, 0001, and 0002. Apply each migration once and record completion. The deployment helper does not apply D1 migrations automatically.
+Migration `drizzle/0001_byu_accounts_community.sql` adds authentication, quotas, community content, and report/moderation tables. `drizzle/0002_moderator_inbox.sql` (September 18, 2026) adds the `inbound_emails` and `email_replies` tables. `drizzle/0004_event_moderation.sql` (September 21, 2026) adds the `event_overrides` table and the `listing_moderation.snapshot` column used by moderator corrections and restorable hides; it is pending on live D1 until the next deploy. They do not replace source snapshots or preferences. Existing installations need 0001 followed by 0002; new databases need 0000, 0001, and 0002. Apply each migration once and record completion. The deployment helper does not apply D1 migrations automatically.
 
 Before deploying this account release to the existing server:
 
