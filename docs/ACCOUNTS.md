@@ -62,7 +62,7 @@ With missing email settings, the page clearly says verification is coming soon a
 
 ## Database and release steps
 
-Migration `drizzle/0001_byu_accounts_community.sql` adds authentication, quotas, community content, and report/moderation tables. `drizzle/0002_moderator_inbox.sql` (September 18, 2026) adds the `inbound_emails` and `email_replies` tables. `drizzle/0004_event_moderation.sql` (September 21, 2026) adds the `event_overrides` table and the `listing_moderation.snapshot` column used by moderator corrections and restorable hides; it is pending on live D1 until the next deploy. They do not replace source snapshots or preferences. Existing installations need 0001 followed by 0002; new databases need 0000, 0001, and 0002. Apply each migration once and record completion. The deployment helper does not apply D1 migrations automatically.
+Migration `drizzle/0001_byu_accounts_community.sql` adds authentication, quotas, community content, and report/moderation tables. `drizzle/0002_moderator_inbox.sql` (September 18, 2026) adds the `inbound_emails` and `email_replies` tables. `drizzle/0004_event_moderation.sql` (September 21, 2026) adds the `event_overrides` table and the `listing_moderation.snapshot` column used by moderator corrections and restorable hides; it was applied to live D1 the same day, with the state directory backed up first, immediately before that evening's release. They do not replace source snapshots or preferences. Existing installations need 0001 followed by 0002; new databases need 0000, 0001, and 0002. Apply each migration once and record completion. The deployment helper does not apply D1 migrations automatically.
 
 Before deploying this account release to the existing server:
 
