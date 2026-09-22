@@ -57,6 +57,9 @@ triangles, one draw call, no textures). Keep these files when publishing the
 static map. See [terrain maintenance](CAMPUS_TERRAIN.md) for source data,
 rebuilding, and the 50 KB / 5,000-triangle budget. The campus GLB/catalog pair
 is unchanged; the scenery has no picking IDs and does not run an idle loop.
+`/campus/*` assets are unhashed and cached up to 4 hours, so any change to
+them requires bumping the shared `?v=20260922` token in `index.html`,
+`calendar-map.js`, and `valley-context.js` together (see CAMPUS_TERRAIN.md).
 
 Deployed September 16, 2026 to byucalendar.com. Search/filter changes automatically frame matching pins. Building selection opens the event dialog only after the camera reports its completed flight; cancelled flights do not open stale dialogs.
 

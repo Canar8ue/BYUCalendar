@@ -36,6 +36,14 @@ This is a visual landmark, not the original footprint at its exact scale.
 
 ## Rebuild
 
+These assets are served unhashed, and the edge/browser caches them up to
+4 hours (`Cache-Control: public, max-age=14400` on non-HTML `/campus/*`).
+Whenever any of `calendar-map.js`, `valley-context.js`, or `valley_lod.glb`
+changes, bump the shared `?v=` token in all three places at once: the script
+tag in `index.html`, its import inside `calendar-map.js`, and the GLB URL in
+`valley-context.js` — otherwise returning visitors keep the old copy for up
+to 4 hours after a deploy.
+
 Source project: `C:/Users/jarin/OneDrive/Desktop/Blender/Projects/BYUCampus`.
 Use its existing Node dependencies. To refresh the DEM, run
 `python scripts/prepare_valley.py` (requires Pillow); otherwise retain the

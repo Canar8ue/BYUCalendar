@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {MeshoptDecoder} from './vendor/meshopt_decoder.module.js';
-import {loadValleyContext} from './valley-context.js';
+import {loadValleyContext} from './valley-context.js?v=20260922';
 
 const stage=document.getElementById('map'),labels=document.getElementById('labels'),loading=document.getElementById('loading');
 const send=data=>parent.postMessage({channel:'byu-calendar-map',...data},location.origin);
