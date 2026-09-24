@@ -6,12 +6,13 @@ import {safeUrl} from '../lib/catalog.mjs';
 import {exportICS} from '../lib/search.mjs';
 import {readJSON, requireRefreshOrigin} from '../lib/http.mjs';
 
-test('refresh accepts the public HTTPS origin behind a proxy and rejects sibling sites and malformed origins', () => {
+test('refresh accepts only the exact public origin — browsers and the header-carrying cron — and rejects everything else', () => {
   const origin = 'https://byucalendar.com';
   const request = headers => new Request('http://byucalendar.com/api/refresh', {method: 'POST', headers});
   assert.doesNotThrow(() => requireRefreshOrigin(request({origin, 'sec-fetch-site': 'same-origin'}), origin));
-  assert.doesNotThrow(() => requireRefreshOrigin(request({}), origin)); // server cron
+  assert.doesNotThrow(() => requireRefreshOrigin(request({origin}), origin)); // server cron sends the origin explicitly
   for (const headers of [
+    {}, // headerless scripts must not trigger refreshes
     {origin: 'https://evil.example', 'sec-fetch-site': 'same-origin'},
     {origin: 'https://untrusted.byucalendar.com', 'sec-fetch-site': 'same-site'},
     {origin: 'null'}, {origin: 'not a URL'}, {origin: ''},

@@ -66,6 +66,7 @@ test('the built Worker applies browser security headers without blocking its cam
     assert.equal(response.headers.get('x-frame-options'), 'SAMEORIGIN', path);
     assert.match(response.headers.get('content-security-policy'), /frame-ancestors 'self'/, path);
     assert.match(response.headers.get('content-security-policy'), /object-src 'none'/, path);
+    assert.match(response.headers.get('strict-transport-security'), /^max-age=\d+/, path);
   }
 });
 

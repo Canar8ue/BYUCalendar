@@ -7,6 +7,7 @@ const nextConfig: NextConfig = {
       {key: 'X-Frame-Options', value: 'SAMEORIGIN'},
       {key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin'},
       {key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()'},
+      {key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains'},
       // Keep the same-origin campus iframe working. Script restrictions need
       // nonces for the framework's inline hydration scripts before enabling.
       {key: 'Content-Security-Policy', value: "base-uri 'self'; object-src 'none'; frame-ancestors 'self'; form-action 'self'"},
