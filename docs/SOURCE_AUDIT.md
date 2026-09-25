@@ -1,4 +1,4 @@
-# Public source audit — September 14, 2026
+# Public source audit — September 14, 2026 (updated September 25, 2026)
 
 This is a broad discovery pass, not a claim that every BYU event is public or included. Source event counts overlap; the app merges matching listings.
 
@@ -17,8 +17,11 @@ This is a broad discovery pass, not a claim that every BYU event is public or in
 | [BYU Law](https://law.byu.edu/) | Linked 25Live public calendar ICS | 67 | Public law-school listings including academic dates. Attendance restrictions vary. |
 | [Marketing Association](https://ma.byu.edu/calendar) | Linked public Google ICS | 0 | The feed is reachable but has no upcoming records. Newer MA events appear in the club-directory snapshot. |
 | [BYU Student Organizations](https://clubs.byu.edu/) | Public browser-observed snapshot | 119 | 48 organizations. Explicitly **not** automatically refreshed. |
+| [Y-Serve](https://yserve.byu.edu/events-and-activities) | Published Outlook ICS behind the page's embedded calendar (September 25, 2026) | 1,262 | 13 recurring volunteer programs (Stop and Serve, Adapted Institute, Digital Literacy, clinics, Project Uplift…) expanded into shift occurrences through September 2027. |
 
 Exact feed URLs are in `lib/catalog.mjs`. Website source URLs are refreshed to discover new event links; those links must stay on the configured origin. Page and request bounds intentionally fail rather than silently publish a truncated replacement.
+
+**Y-Serve integration note (September 25, 2026):** the `events-and-activities` page embeds an Outlook publish-to-web calendar whose `.ics` twin lives at the same `outlook.office365.com/owa/calendar/<id>/calendar.ics` path. That feed labels its timezone with the Windows name `Mountain Standard Time`, which `Intl` cannot interpret — `lib/catalog.mjs` now maps common Windows zone names to IANA zones before conversion, so the feed's recurring volunteer shifts expand with correct Mountain Time offsets across DST. The 1,262 upcoming count is dominated by long-running weekly programs (Adapted Institute, Digital Literacy, Stop and Serve); each occurrence is a real volunteer shift, and the calendar note asks visitors to confirm shift details on the Y-Serve site. The feed carries no per-event links, so every record points back to the Y-Serve page.
 
 The Student Organizations public list contained 249 past and future records. The last 119 listings ran from September 14, 2026 through January 12, 2027. We observed the current September 2026 calendar and the explicit January 2027 date. Listing-only records preserve title, host organization, date/time and location; other fields stay unknown. A few directly visited event detail pages add descriptions, end times and deep links. Other entries link to the public directory. There is no verified public feed/export, and the published API documentation route denied access. No sign-in, session extraction, or private API access was used.
 
@@ -32,7 +35,7 @@ Club coverage includes Accounting Society, Women in Finance, Finance Society/Inv
 | [Library events](https://lib.byu.edu/events/) | Current featured events link to the main BYU calendar already imported. |
 | [Honors](https://honors.byu.edu/upcoming-events) | Hand-maintained table omits years and includes ambiguous/inconsistent entries. Needs a verified dated export before automatic import. |
 | [Statistics](https://statistics.byu.edu/upcoming-events) | Current page contains a photo contest article, not a complete dated event feed. |
-| [Y-Serve](https://yserve.byu.edu/) | Publicly embedded Outlook calendar is reachable but yielded no events in our import window. |
+| [Y-Serve](https://yserve.byu.edu/) | The September 14 pass found the embedded Outlook calendar but no usable records; the published `calendar.ics` behind the same embed was integrated on September 25, 2026 (see above). |
 | [Beta Alpha Psi](https://bap.byu.edu/) | Redirects to an unavailable Wix site. Kept unconnected. |
 | [Marriott club directory](https://marriott.byu.edu/clubs/directory) | Redirects to Student Organizations, whose published events were captured above. |
 

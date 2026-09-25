@@ -14,6 +14,14 @@ const now=new Date('2026-09-14T18:00:00Z');
 const wrap=s=>'BEGIN:VCALENDAR\r\nVERSION:2.0\r\n'+s+'\r\nEND:VCALENDAR';
 const record=(start,end='',more='')=>`BEGIN:VEVENT\r\nUID:stable-123\r\nSUMMARY:Campus meetup\r\nDTSTART${start}\r\n${end?'DTEND'+end+'\r\n':''}${more}\r\nEND:VEVENT`;
 test('Denver conversion changes offset at DST boundaries',()=>{assert.equal(civilToISO('2026-09-17 18:00:00'),'2026-09-18T00:00:00.000Z');assert.equal(civilToISO('2026-12-17 18:00:00'),'2026-12-18T01:00:00.000Z');});
+const mstZone='BEGIN:VTIMEZONE\r\nTZID:Mountain Standard Time\r\nBEGIN:STANDARD\r\nDTSTART:16010101T020000\r\nTZOFFSETFROM:-0600\r\nTZOFFSETTO:-0700\r\nRRULE:FREQ=YEARLY;INTERVAL=1;BYDAY=1SU;BYMONTH=11\r\nEND:STANDARD\r\nBEGIN:DAYLIGHT\r\nDTSTART:16010101T020000\r\nTZOFFSETFROM:-0700\r\nTZOFFSETTO:-0600\r\nRRULE:FREQ=YEARLY;INTERVAL=1;BYDAY=2SU;BYMONTH=3\r\nEND:DAYLIGHT\r\nEND:VTIMEZONE';
+test('Exchange Windows TZIDs map to IANA zones through DST',()=>{
+ const tzd=';TZID=Mountain Standard Time';
+ const summer=parseICS(wrap(mstZone+'\r\n'+record(`${tzd}:20260917T080000`,`${tzd}:20260917T090000`)),source,now)[0];
+ assert.equal(summer.start,'2026-09-17T14:00:00.000Z');
+ const winter=parseICS(wrap(mstZone+'\r\n'+record(`${tzd}:20261217T080000`,`${tzd}:20261217T090000`)),source,now)[0];
+ assert.equal(winter.start,'2026-12-17T15:00:00.000Z');
+});
 test('rescheduling keeps single-event identity and repairs impossible end time',()=>{const a=parseICS(wrap(record(':20260917T180000Z',':20260917T170000Z')),source,now)[0];const b=parseICS(wrap(record(':20260917T190000Z')),source,now)[0];assert.equal(a.id,b.id);assert.equal(a.end,null);});
 test('recurrence exclusions and moved instances retain original occurrence identities',()=>{const recurring=record(':20260915T180000Z',':20260915T190000Z','RRULE:FREQ=WEEKLY;COUNT=3\r\nEXDATE:20260922T180000Z');const exception='BEGIN:VEVENT\r\nUID:stable-123\r\nRECURRENCE-ID:20260929T180000Z\r\nSUMMARY:Moved meetup\r\nDTSTART:20260929T200000Z\r\nDTEND:20260929T210000Z\r\nEND:VEVENT';const events=parseICS(wrap(recurring+'\r\n'+exception),source,now);assert.equal(events.length,2);assert.equal(events[1].start,'2026-09-29T20:00:00.000Z');});
 test('all-day ranges exclude DTEND and match searches during the event',()=>{const e=parseICS(wrap(record(';VALUE=DATE:20260923',';VALUE=DATE:20260926')),source,now)[0];assert.deepEqual(eventDays(e),['2026-09-23','2026-09-24','2026-09-25']);assert.ok(matchesEvent(e,'today',[],[],new Date('2026-09-24T18:00:00Z')));});
