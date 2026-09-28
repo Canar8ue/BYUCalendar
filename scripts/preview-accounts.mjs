@@ -33,7 +33,7 @@ const mf = new Miniflare({
 
 try {
   const db = await mf.getD1Database('DB');
-  for (const [table, file] of [['source_snapshots', '0000_pink_scarlet_spider.sql'], ['auth_user', '0001_byu_accounts_community.sql'], ['inbound_emails', '0002_moderator_inbox.sql'], ['analytics_events', '0003_usage_analytics.sql'], ['event_overrides', '0004_event_moderation.sql']]) {
+  for (const [table, file] of [['source_snapshots', '0000_pink_scarlet_spider.sql'], ['auth_user', '0001_byu_accounts_community.sql'], ['inbound_emails', '0002_moderator_inbox.sql'], ['analytics_events', '0003_usage_analytics.sql'], ['event_overrides', '0004_event_moderation.sql'], ['email_digests', '0005_email_digests.sql']]) {
     if (await db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?").bind(table).first()) continue;
     const statements = readFileSync('drizzle/' + file, 'utf8').replaceAll('--> statement-breakpoint', '').split(';').map(s => s.trim()).filter(Boolean);
     await db.batch(statements.map(sql => db.prepare(sql)));

@@ -17,7 +17,7 @@ before(async () => {
     modules: ['index.js', ...readdirSync('dist/server', {recursive: true}).filter(path => path !== 'index.js' && /\.m?js$/.test(path))].map(path => ({type: 'ESModule', path: 'dist/server/' + path.replaceAll('\\', '/')})),
     compatibilityDate: '2026-05-15', compatibilityFlags: ['nodejs_compat'],
     d1Databases: ['DB'], assets: {directory: 'dist/client', routerConfig: {has_user_worker: true}},
-    bindings: {BETTER_AUTH_SECRET: 'isolated-worker-test-secret-not-for-production-123456789', BETTER_AUTH_URL: origin, RESEND_API_KEY: 'test-intercepted-no-network', AUTH_EMAIL_FROM: 'BYU Calendar <signin@auth.byucalendar.com>', RESEND_INBOUND_SECRET: inboundSecret, CALENDAR_ADMIN_EMAILS: 'reviewer@byu.edu', SEARCH_ASSIST_API_KEY: 'test-assist-key'},
+    bindings: {BETTER_AUTH_SECRET: 'isolated-worker-test-secret-not-for-production-123456789', BETTER_AUTH_URL: origin, RESEND_API_KEY: 'test-intercepted-no-network', AUTH_EMAIL_FROM: 'BYU Calendar <signin@auth.byucalendar.com>', RESEND_INBOUND_SECRET: inboundSecret, CALENDAR_ADMIN_EMAILS: 'reviewer@byu.edu', SEARCH_ASSIST_API_KEY: 'test-assist-key', REMINDERS_DISPATCH_TOKEN: 'test-dispatch-token'},
     outboundService: async request => {
       if (new URL(request.url).hostname === 'api.resend.com') {
         if (request.method === 'GET') return Response.json({text: 'Please delete my data from the calendar. Thanks, Citizen', html: '<p>Please delete my data.</p>'});
@@ -41,7 +41,7 @@ before(async () => {
     },
   });
   db = await mf.getD1Database('DB');
-  for (const file of ['0000_pink_scarlet_spider.sql', '0001_byu_accounts_community.sql', '0002_moderator_inbox.sql', '0003_usage_analytics.sql', '0004_event_moderation.sql']) {
+  for (const file of ['0000_pink_scarlet_spider.sql', '0001_byu_accounts_community.sql', '0002_moderator_inbox.sql', '0003_usage_analytics.sql', '0004_event_moderation.sql', '0005_email_digests.sql']) {
     const statements = readFileSync(new URL('../drizzle/' + file, import.meta.url), 'utf8').replaceAll('--> statement-breakpoint', '').split(';').map(s => s.trim()).filter(Boolean);
     await db.batch(statements.map(sql => db.prepare(sql)));
   }
@@ -373,3 +373,49 @@ test('moderators correct, hide, and restore source listings over HTTP', async ()
   assert.equal(reverted.location, target.location);
   assert.ok(!reverted.overridden);
 });
+
+test('the daily digest emails saved-event members once per day and honors opt-out', async () => {
+  const email = 'digest-member@student.byu.edu';
+  const cookie = await login(email, 'digest-test-pass-123');
+  // An event later today (Mountain Time) with no end always lands in today's digest.
+  const today = new Intl.DateTimeFormat('en-CA', {timeZone: 'America/Denver'}).format(new Date());
+  const input = {submissionId: crypto.randomUUID(), title: 'Integration digest meetup', organizer: 'Digest club', description: 'Daily digest verification event.', category: 'Campus life', location: 'TNRB 260', url: 'https://clubs.byu.edu/', allDay: false, start: today + 'T23:59', end: ''};
+  const published = await request('/api/listings', input, cookie);
+  assert.equal(published.status, 201, await published.clone().text());
+  const listingId = (await published.json()).event.id;
+  assert.equal((await request('/api/preferences', {saved: [listingId], views: []}, cookie, {}, 'PUT')).status, 200);
+  assert.equal((await (await request('/api/preferences', null, cookie, {}, 'GET')).json()).digestOptedOut, false);
+  // Only the cron holding the shared dispatch token may trigger a send.
+  assert.equal((await request('/api/reminders/dispatch', null, '')).status, 403);
+  assert.equal((await request('/api/reminders/dispatch', null, '', {authorization: 'Bearer wrong-token'})).status, 403);
+  const digest = await request('/api/reminders/dispatch?force=1', null, '', {authorization: 'Bearer test-dispatch-token'});
+  assert.equal(digest.status, 200, await digest.clone().text());
+  assert.equal((await digest.json()).sent, 1);
+  const sentEmail = sent.find(message => message.to[0] === email);
+  assert.ok(sentEmail, 'the digest email was intercepted');
+  assert.match(sentEmail.subject, /saved events/);
+  assert.ok(sentEmail.text.includes('Integration digest meetup'), sentEmail.text);
+  assert.ok(sentEmail.text.includes('/events/' + encodeURIComponent(listingId)));
+  assert.match(sentEmail.headers['List-Unsubscribe'], /unsubscribe\?u=/);
+  assert.equal(sentEmail.headers['List-Unsubscribe-Post'], 'List-Unsubscribe=One-Click');
+  // The per-day mark keeps an immediately repeated run from sending again.
+  const again = await request('/api/reminders/dispatch?force=1', null, '', {authorization: 'Bearer test-dispatch-token'});
+  assert.equal((await again.json()).sent, 0);
+  // The signed unsubscribe link flips the setting without a session.
+  const unsubUrl = new URL(sentEmail.headers['List-Unsubscribe'].replace(/^<|>$/g, ''));
+  assert.equal((await request(`/api/reminders/unsubscribe?u=${encodeURIComponent(unsubUrl.searchParams.get('u'))}&t=tampered`, null, '', {}, 'GET')).status, 403);
+  const good = await request('/api/reminders/unsubscribe?' + unsubUrl.searchParams, null, '', {}, 'GET');
+  assert.equal(good.status, 200, await good.clone().text());
+  assert.match(await good.text(), /unsubscribed/i);
+  assert.equal((await (await request('/api/preferences', null, cookie, {}, 'GET')).json()).digestOptedOut, true);
+  const optedOut = await request('/api/reminders/dispatch?force=1', null, '', {authorization: 'Bearer test-dispatch-token'});
+  assert.equal((await optedOut.json()).sent, 0);
+  // Re-enabling from the account toggle never re-sends a day that already went out.
+  assert.equal((await request('/api/preferences/digest', {optedOut: false}, cookie)).status, 200);
+  const reenabled = await request('/api/reminders/dispatch?force=1', null, '', {authorization: 'Bearer test-dispatch-token'});
+  assert.equal((await reenabled.json()).sent, 0);
+  // The toggle is account-gated and strictly validated.
+  assert.equal((await request('/api/preferences/digest', {optedOut: true})).status, 401);
+  assert.equal((await request('/api/preferences/digest', {optedOut: 'yes'}, cookie)).status, 400);
+});
+

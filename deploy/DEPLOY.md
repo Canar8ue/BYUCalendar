@@ -23,6 +23,7 @@ Moved here September 16, 2026 from the GCP e2-micro (which swap-thrashed at
 | Nginx vhost | `sites-available/byucalendar` (repo copy: `deploy/byucalendar.nginx.conf`, with `http2 on;` syntax for nginx 1.28) — 443 with Let's Encrypt cert, gzip, proxy to 8788 |
 | TLS cert | `/etc/letsencrypt/live/byucalendar.com/` — copied from the old server at migration; `certbot renew --dry-run` verified working here (the box renews three other certs too; all passed) |
 | Auto refresh | crontab for `deploy`: hourly at :10 plus `7,27,47 * * * *`, both POST `/api/refresh` → `~/byucalendar/refresh.log` |
+| Daily digest dispatch | same crontab: `2,17,32,47 * * * *` POST `/api/reminders/dispatch` with the `Origin` header and `Authorization: Bearer $REMINDERS_DISPATCH_TOKEN` → `~/byucalendar/refresh.log`; the endpoint only sends between 7:00 and 10:00 AM Mountain Time (added September 28, 2026) |
 | Passwordless sudo | `/etc/sudoers.d/byucalendar` — only `systemctl {restart,is-active,status,start,stop} byucalendar`, so `deploy/update.sh` works non-interactively. Delete the file to revoke. |
 
 ## Day-to-day operations

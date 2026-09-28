@@ -37,8 +37,15 @@ No first-user administrator rule exists. An empty administrator list means nobod
 | `CALENDAR_ADMIN_EMAILS` | Comma-separated BYU email addresses permitted to review reports and the message inbox |
 | `RESEND_INBOUND_SECRET` | Resend webhook signing secret (`whsec_…`) verifying inbound-email deliveries |
 | `CALENDAR_INBOX_ADDRESS` | Optional inbox address; defaults to `privacy@byucalendar.com` |
+| `REMINDERS_DISPATCH_TOKEN` | Shared secret the server cron sends as `Authorization: Bearer …` to `POST /api/reminders/dispatch`; generate with `openssl rand -hex 32`. Without it the dispatch endpoint rejects every request. |
 
 The Resend domain `auth.byucalendar.com` is verified (configured September 2026); keys live only in the server's private environment file, never in Git, the public source registry, or the browser bundle. If the key is rotated or the domain changes, update `/home/deploy/byucalendar/.env.accounts` and restart the service.
+
+## Daily digest of saved events
+
+Every verified member with saved events receives at most one digest email per day (added September 28, 2026). It is on by default and lists the member's saved events happening that day in Mountain Time — multi-day events stay listed until they end; cancelled or already-finished events are left out. A server cron POSTs `POST /api/reminders/dispatch` every 15 minutes with the `Origin` header and the `REMINDERS_DISPATCH_TOKEN` bearer secret; the endpoint sends only between 7:00 and 10:00 AM Mountain Time (so a brief outage still delivers that morning) and marks each member's sent day in the `email_digests` D1 table (migration `0005`), which makes repeated runs idempotent. `?force=1` bypasses only the time window, never the per-day dedupe. Members with no saved events that day receive nothing.
+
+Opt-out works in both directions without support: the toggle on `/account` (`POST /api/preferences/digest`), and the signed unsubscribe link in every digest email (`GET/POST /api/reminders/unsubscribe?u=<user id>&t=<HMAC token>` plus `List-Unsubscribe` headers for one-click). The link's authority is an HMAC of the user id under `BETTER_AUTH_SECRET`, so no session is required and links cannot be forged. Re-enabling never re-sends a day that already went out. Resend daily volume caps still apply — digests share the same account as verification and reset email.
 
 ## Moderator message inbox
 
