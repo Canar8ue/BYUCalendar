@@ -3,7 +3,7 @@
 // and the deterministic recommendation pass. No Worker runtime needed.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {buildChatPrompt,interpretChatStep,canonicalAnswer,profileFromAnswers,profileEmpty,decayedScore,nextActivityScore,scoreEvent,recommendEvents,CHAT_MAX_STEPS,ACTIVITY_HALF_LIFE_MS} from '../lib/profile.mjs';
+import {buildChatPrompt,interpretChatStep,canonicalAnswer,profileFromAnswers,profileEmpty,decayedScore,nextActivityScore,scoreEvent,recommendEvents,ACTIVITY_HALF_LIFE_MS} from '../lib/profile.mjs';
 
 const now=new Date('2026-09-28T18:00:00Z');
 const answers=[

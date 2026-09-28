@@ -23,40 +23,30 @@ export function markTourSeen(flag: string) {
   try { storage()?.setItem(flag, 'seen'); } catch {/* already silent */}
 }
 
-// The search tip arms itself on mount (after the launch loader clears); the
-// event tip arms on the first opened listing, so the hook and the helpers
-// cover the two triggers.
-export function useTourFlag(flag: string, armed: boolean) {
-  const [active, setActive] = useState(false);
-  useEffect(() => {
-    if (armed && !tourSeen(flag)) setActive(true);
-  }, [flag, armed]);
-  const dismiss = () => {
-    markTourSeen(flag);
-    setActive(false);
-  };
-  return {active, dismiss};
-}
-
 function TourKicker() {
   return <div className="tour-kicker">QUICK TIP</div>;
 }
 
-export function SearchTip({visible, onTry, onDismiss}: {visible: boolean; onTry: () => void; onDismiss: () => void}) {
+// The parent decides whether the tip still applies (first visit, loader
+// cleared); dismissal is local state plus the storage flag, so the tip never
+// needs to set state from an effect.
+export function SearchTip({visible, onTry}: {visible: boolean; onTry: () => void}) {
+  const [open, setOpen] = useState(visible);
+  const dismiss = () => { markTourSeen(SEARCH_TOUR_FLAG); setOpen(false); };
   useEffect(() => {
-    if (!visible) return;
-    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') onDismiss(); };
+    if (!open) return;
+    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') dismiss(); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [visible, onDismiss]);
-  if (!visible) return null;
+  }, [open]);
+  if (!open) return null;
   return (
     <div className="tour-pop" role="dialog" aria-label="Search tip">
       <TourKicker/>
       <p><b>Search like you mean it.</b> Type a phrase like “free food this week” or “shows this weekend” — smart search turns it into filters.</p>
       <div className="tour-actions">
-        <button className="primary-button" onClick={onTry}>Try “free food this week”</button>
-        <button className="text-button" onClick={onDismiss}>Got it</button>
+        <button className="primary-button" onClick={() => { markTourSeen(SEARCH_TOUR_FLAG); setOpen(false); onTry(); }}>Try “free food this week”</button>
+        <button className="text-button" onClick={dismiss}>Got it</button>
       </div>
     </div>
   );

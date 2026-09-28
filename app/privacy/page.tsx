@@ -19,7 +19,7 @@ export default function PrivacyPolicyPage() {
     <div className="policy-head">
       <div className="eyebrow">PRIVACY</div>
       <h1>Privacy Policy<span>.</span></h1>
-      <p className="policy-effective">EFFECTIVE SEPTEMBER 16, 2026 · BYUCALENDAR.COM</p>
+      <p className="policy-effective">EFFECTIVE SEPTEMBER 28, 2026 · BYUCALENDAR.COM</p>
     </div>
 
     <div className="policy-summary">
@@ -42,6 +42,7 @@ export default function PrivacyPolicyPage() {
         <li><span><b>Account details.</b> If you create an account: your name, your BYU email address, and a hashed version of your password — never the password itself. A signed session cookie keeps you signed in.</span></li>
         <li><span><b>Your saved items.</b> Bookmarked events and saved searches, tied to your account.</span></li>
         <li><span><b>Your contributions.</b> Listings and tags you publish are public but shown without your name or email. Reports you submit are private and visible only to site administrators.</span></li>
+        <li><span><b>Your personal picks.</b> If you use the picks chat, your answers become a short interest list on your account. While you are signed in, the events you open, save, share, or map feed anonymous interest counters (categories and tags with a fading score — never which specific events you viewed) that shape your suggested events. Deleting your account removes all of it.</span></li>
         <li><span><b>Usage analytics.</b> How the site is used — pages and events viewed, searches, exports, approximate region, browser and device type, and the site that sent you here. These are aggregate counts built in-house: analytics use no cookies, never record your name, email, or IP address, and are kept for 180 days. We use them to decide what to improve.</span></li>
         <li><span><b>Server logs.</b> Standard request logs (IP address, time, requested page) kept for security and reliability.</span></li>
       </ul>
@@ -67,6 +68,7 @@ export default function PrivacyPolicyPage() {
       <ul className="policy-list dots">
         <li><span><b>Hosting and network.</b> Our hosting provider and Cloudflare (DNS and site delivery) handle traffic to the site.</span></li>
         <li><span><b>Email delivery.</b> Resend sends verification and password-reset emails to your address.</span></li>
+        <li><span><b>AI assistance.</b> Smart-search phrases and the picks-chat question wording are sent to our configured AI provider for interpretation; no account data or event inventories go along. Everything else — matching, profiles, and picks — is computed on our servers.</span></li>
         <li><span><b>Typography.</b> Google Fonts serves the site&apos;s fonts; your browser requests them directly.</span></li>
         <li><span><b>Analytics.</b> Measured in-house by the cookieless system described above — no third-party analytics service receives this data.</span></li>
       </ul>

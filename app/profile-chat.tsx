@@ -26,23 +26,35 @@ export default function ProfileChat({onFinished}: {onFinished: () => void}) {
     historyRef.current?.scrollTo({top: historyRef.current.scrollHeight});
   }, [messages, busy]);
 
+  function apply(data: ChatResponse) {
+    if (data.done) {
+      setStep(null); setFinished(true);
+      setMessages(current => [...current, {role: 'bot', text: (data.summary || 'Your picks are ready.') + ' My calendar will keep an eye out for events like these.'}]);
+    } else if (data.step) {
+      setStep(data.step); setPicked([]);
+      setMessages(current => [...current, {role: 'bot', text: data.step!.question}]);
+    }
+  }
+
+  // The first question loads with the dialog; state changes only land in the
+  // promise callbacks, never synchronously from the effect.
+  useEffect(() => {
+    let active = true;
+    postJSON<ChatResponse>('/api/profile/chat', {answers: []}, 45000)
+      .then(data => { if (active) apply(data); })
+      .catch(() => { if (active) setError('The picks chat is briefly unavailable.'); })
+      .finally(() => { if (active) setBusy(false); });
+    return () => { active = false; };
+  }, []);
+
   async function ask(next: ChatAnswer[], restart = false) {
     setBusy(true); setError('');
     try {
-      const data = await postJSON<ChatResponse>('/api/profile/chat', restart ? {restart: true} : {answers: next}, 45000);
-      if (data.done) {
-        setStep(null); setFinished(true);
-        setMessages(current => [...current, {role: 'bot', text: (data.summary || 'Your picks are ready.') + ' My calendar will keep an eye out for events like these.'}]);
-      } else if (data.step) {
-        setStep(data.step); setPicked([]);
-        setMessages(current => [...current, {role: 'bot', text: data.step!.question}]);
-      }
+      apply(await postJSON<ChatResponse>('/api/profile/chat', restart ? {restart: true} : {answers: next}, 45000));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'The picks chat is briefly unavailable.');
     } finally { setBusy(false); }
   }
-
-  useEffect(() => { void ask([]); }, []);
 
   function answer(labels: string[]) {
     if (!step) return;
@@ -96,7 +108,7 @@ export default function ProfileChat({onFinished}: {onFinished: () => void}) {
           <button className="text-button" onClick={restart}>Start over</button>
         </div>
       )}
-      <p className="chat-footnote"><MessageCircleQuestion size={14}/> Question wording comes from the calendar's AI assistant; your answers and every pick are computed on our servers.</p>
+      <p className="chat-footnote"><MessageCircleQuestion size={14}/> Question wording comes from the calendar&apos;s AI assistant; your answers and every pick are computed on our servers.</p>
     </div>
   );
 }
