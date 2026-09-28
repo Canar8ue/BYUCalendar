@@ -1,6 +1,7 @@
 import {database} from '../db';
 import seed from '../data/seed.json';
 import {SOURCES,UNCONNECTED,mergeEvents,lastDay,classify} from './catalog.mjs';
+import {applyImportantEvents} from './important-events.mjs';
 import {importSource} from './source-import.mjs';
 import {communityCalendar} from './community-store.mjs';
 import type {CampusEvent,CalendarData} from '../app/types';
@@ -32,7 +33,9 @@ async function buildCalendar():Promise<CalendarData>{
  const all:CampusEvent[]=[],today=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Denver'}).format(new Date());
  const statuses=SOURCES.map(source=>{const row=rows.find(r=>r.id===source.id);const events:CampusEvent[]=row?JSON.parse(row.payload).map((e:CampusEvent)=>classify(e,{IsFree:e.free===null?undefined:String(e.free)})):[];all.push(...events);
    return {id:source.id,name:source.name,url:source.url,count:events.filter(e=>!e.cancelled&&lastDay(e)>=today).length,lastSuccess:row?.last_success==='1970-01-01T00:00:00Z'?null:row?.last_success||null,error:row?.error||null,enabled:true,snapshot:source.kind==='snapshot',note:source.note};});
- const events=await communityCalendar(db,mergeEvents(all)) as CampusEvent[];
+ // Signature events are flagged at read time so next year's occurrences mark
+ // themselves and source refreshes never lose the Important tag.
+ const events=applyImportantEvents(await communityCalendar(db,mergeEvents(all)) as CampusEvent[]);
  const community=events.filter(e=>e.community);
  return {events,sources:[...statuses,...(community.length?[{id:'community',name:'Community listings',url:'/',enabled:true,count:community.filter(e=>!e.cancelled&&lastDay(e)>=today).length,lastSuccess:null,error:null,note:'Published by members with verified BYU email addresses. Details are community submitted.'}]:[]),...UNCONNECTED.map(s=>({...s,enabled:false,count:0,lastSuccess:null,error:null}))],stored:true};
 }

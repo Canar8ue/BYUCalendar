@@ -31,6 +31,11 @@ before(async () => {
         const body = await request.json();
         assert.equal(body.messages[0].role, 'system');
         assert.ok(String(body.messages[0].content).includes('Respond with ONLY a JSON object'));
+        const system = String(body.messages[0].content);
+        if (system.includes('onboarding assistant')) {
+          const step = JSON.stringify({question: 'Which subjects do you care about?', key: 'interests', options: ['Information systems', 'Accounting', 'Not sure'], multiple: true});
+          return Response.json({choices: [{message: {role: 'assistant', content: '```json\n' + step + '\n```'}}]});
+        }
         const query = body.messages[1].content;
         const soon = new Date(Date.now() + 5 * 86400000).toISOString().slice(0, 10);
         const answer = /unparseable/.test(query) ? 'Sorry, I cannot help with that.'
@@ -41,7 +46,7 @@ before(async () => {
     },
   });
   db = await mf.getD1Database('DB');
-  for (const file of ['0000_pink_scarlet_spider.sql', '0001_byu_accounts_community.sql', '0002_moderator_inbox.sql', '0003_usage_analytics.sql', '0004_event_moderation.sql', '0005_email_digests.sql']) {
+  for (const file of ['0000_pink_scarlet_spider.sql', '0001_byu_accounts_community.sql', '0002_moderator_inbox.sql', '0003_usage_analytics.sql', '0004_event_moderation.sql', '0005_email_digests.sql', '0006_profile_picks.sql']) {
     const statements = readFileSync(new URL('../drizzle/' + file, import.meta.url), 'utf8').replaceAll('--> statement-breakpoint', '').split(';').map(s => s.trim()).filter(Boolean);
     await db.batch(statements.map(sql => db.prepare(sql)));
   }
@@ -417,5 +422,46 @@ test('the daily digest emails saved-event members once per day and honors opt-ou
   // The toggle is account-gated and strictly validated.
   assert.equal((await request('/api/preferences/digest', {optedOut: true})).status, 401);
   assert.equal((await request('/api/preferences/digest', {optedOut: 'yes'}, cookie)).status, 400);
+});
+
+test('personal picks: chat builds a profile, activity feeds tastes, and signature events are marked', async () => {
+  const cookie = await login('picks-member@student.byu.edu');
+  // All three endpoints are members-only; the chat and activity beacons are
+  // additionally same-origin.
+  assert.equal((await request('/api/profile/chat', {answers: []})).status, 401);
+  assert.equal((await request('/api/profile/activity', {type: 'save', eventId: 'x'})).status, 401);
+  assert.equal((await request('/api/recommendations', null, '', {}, 'GET')).status, 401);
+  assert.equal((await request('/api/profile/chat', {answers: []}, cookie, {origin: 'https://evil.example'})).status, 403);
+  assert.equal((await request('/api/profile/activity', {type: 'save', eventId: 'x'}, cookie, {origin: 'https://evil.example'})).status, 403);
+  // The model phrases the first question; the clamped shape comes through.
+  const first = await (await request('/api/profile/chat', {answers: []}, cookie)).json();
+  assert.equal(first.done, false);
+  assert.equal(first.step.key, 'interests');
+  assert.ok(first.step.options.length >= 2);
+  // A finished conversation stores the canonicalized profile ("Information
+  // systems" -> IS) without another model call.
+  const finished = await (await request('/api/profile/chat', {answers: Array(5).fill({question: 'Which subjects do you care about?', key: 'interests', options: ['Information systems']})}, cookie)).json();
+  assert.equal(finished.done, true);
+  assert.deepEqual(finished.profile.interests, ['IS']);
+  // Signature events carry the Important marker end to end, including
+  // community submissions, because flagging is layered at read time.
+  const day = new Date(Date.now() + 4 * 86400000).toISOString().slice(0, 10);
+  const fair = await request('/api/listings', {submissionId: crypto.randomUUID(), title: 'STEM Career Fair', organizer: 'Career center', description: 'Employers across science, technology, engineering, and math recruit on campus.', category: 'Career & business', location: 'WSC Ballroom', url: 'https://byu.edu/', allDay: false, start: day + 'T19:00', end: ''}, cookie);
+  assert.equal(fair.status, 201, await fair.clone().text());
+  const fairId = (await fair.json()).event.id;
+  const calendar = await (await request('/api/events', null, '', {}, 'GET')).json();
+  const flagged = calendar.events.find(e => e.id === fairId);
+  assert.equal(flagged.important, 'Annual STEM fair');
+  assert.ok(flagged.tags.includes('Important'));
+  // Activity resolves only for real calendar listings; ghost ids do nothing.
+  assert.equal((await (await request('/api/profile/activity', {type: 'save', eventId: fairId}, cookie)).json()).ok, true);
+  assert.equal((await (await request('/api/profile/activity', {type: 'event_view', eventId: 'byu:ghost'}, cookie)).json()).ok, false);
+  assert.equal((await (await request('/api/profile/activity', {type: 'nonsense', eventId: fairId}, cookie)).json()).ok, false);
+  // Tastes from real activity surface as ranked picks with reasons.
+  const picks = await (await request('/api/recommendations', null, cookie, {}, 'GET')).json();
+  assert.equal(picks.hasProfile, true);
+  const pick = picks.picks.find(p => p.id === fairId);
+  assert.ok(pick, 'expected the STEM fair among picks');
+  assert.ok(pick.reasons.length > 0);
 });
 

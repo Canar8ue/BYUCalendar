@@ -22,6 +22,12 @@
 .week-grid .day-cell{height:auto;min-height:430px;padding:10px 6px 15px}.week-grid .day-events{gap:8px}.week-grid .calendar-event{height:auto;min-height:61px;display:flex;flex-direction:column;align-items:flex-start;padding:7px 7px 8px;gap:4px;border-left-width:3px}.week-grid .calendar-event .event-time{display:block;font-size:12px}.week-grid .calendar-event>span:not(.event-time){white-space:normal;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;line-height:1.4;font-size:12px;overflow:hidden}.week-grid .day-number{margin-bottom:13px}.week-grid .day-cell{border-bottom:0}.week-grid .day-number>span{display:none}@media(max-width:650px){.week-grid .day-cell{padding:8px 3px;min-height:390px}.week-grid .calendar-event{padding:5px 3px;min-height:65px}.week-grid .calendar-event .event-time{font-size:12px}.week-grid .calendar-event>span:not(.event-time){font-size:12px;word-break:normal;-webkit-line-clamp:4}.calendar-toolbar h2{font-size:16px}.calendar-actions{gap:1px}.view-toggle button{padding:5px}.month-navigation button{width:22px}}
 .cancelled-label{color:var(--red)}
 
+/* Signature events: important listings lead their day and carry a clear marker. */
+.event-star{color:var(--orange);flex-shrink:0}
+.calendar-event.important-event{border-left-color:var(--orange)}
+.important-chip{display:inline-flex;align-items:center;gap:4px;font:500 10.5px var(--font-mono);letter-spacing:.03em;border:1px solid #f2c9a8;background:var(--orange-t);color:#a0541a;border-radius:5px;padding:2px 6px}
+.important-badge{display:inline-flex;align-items:center;gap:7px;border:1.5px solid var(--ink);background:var(--orange-t);color:#a0541a;border-radius:8px;padding:6px 11px;font:600 12px var(--font-mono);letter-spacing:.05em;box-shadow:2px 2px 0 var(--ink);margin:0 0 14px}
+
 /* First-visit tour: small dismissible pointers, never a screen takeover. */
 .searchbar-wrap{position:relative}
 .tour-pop{position:absolute;top:calc(100% + 10px);left:0;z-index:30;width:min(370px,calc(100vw - 60px));background:#fff;border:1.5px solid var(--ink);border-radius:10px;box-shadow:3px 3px 0 var(--ink);padding:14px 15px;text-align:left}
