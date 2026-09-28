@@ -1,9 +1,25 @@
-import {sqliteTable,text,integer,index,uniqueIndex} from "drizzle-orm/sqlite-core";
+import {sqliteTable,text,integer,real,index,uniqueIndex,primaryKey} from "drizzle-orm/sqlite-core";
 export const sources=sqliteTable("source_snapshots",{id:text("id").primaryKey(),payload:text("payload").notNull(),lastSuccess:text("last_success").notNull(),lastAttempt:text("last_attempt"),error:text("error"),lockUntil:integer("lock_until").notNull().default(0)});
 export const preferences=sqliteTable("user_preferences",{userId:text("user_id").primaryKey(),payload:text("payload").notNull()});
 // One daily digest email per member: the opt-out flag plus the last day a
 // digest was sent, which is what makes the morning dispatch idempotent.
 export const emailDigests=sqliteTable("email_digests",{userId:text("user_id").primaryKey().references(()=>authUser.id,{onDelete:"cascade"}),optedOut:integer("opted_out",{mode:"boolean"}).notNull().default(false),lastDay:text("last_day").notNull().default(""),lastSentAt:text("last_sent_at"),lastCount:integer("last_count")});
+
+// "Picked for you" personalization: the chat-built interest profile, plus
+// decaying taste counters derived from signed-in activity. Counters store
+// categories and tags only — never which specific events a member viewed.
+export const userProfiles = sqliteTable("user_profiles", {
+  userId: text("user_id").primaryKey().references(() => authUser.id, {onDelete: "cascade"}),
+  payload: text("payload").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+export const profileActivity = sqliteTable("profile_activity", {
+  userId: text("user_id").notNull().references(() => authUser.id, {onDelete: "cascade"}),
+  kind: text("kind").notNull(),
+  value: text("value").notNull(),
+  score: real("score").notNull().default(0),
+  updatedAt: text("updated_at").notNull(),
+}, t => [primaryKey({columns: [t.userId, t.kind, t.value]})]);
 
 export const authUser = sqliteTable('auth_user', {
   id: text('id').primaryKey(), name: text('name').notNull(), email: text('email').notNull().unique(),

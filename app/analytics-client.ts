@@ -20,3 +20,14 @@ export function trackSearch(query: string, results: number) {
   if (searchTimer) clearTimeout(searchTimer);
   searchTimer = setTimeout(() => track({type: 'search', name: text.slice(0, 120), detail: String(results)}), 1200);
 }
+
+// Personal-picks beacons: the same fire-and-forget posture as the aggregate
+// analytics above, but these go to /api/profile/activity and only for
+// signed-in members, so "Picked for you" can learn from real use. The caller
+// decides when an account is signed in; failures stay silent.
+export type PersonalAction = 'event_view' | 'save' | 'share' | 'directions' | 'export' | 'map_view';
+export function trackPersonal(action: PersonalAction, eventId: string) {
+  try {
+    void fetch('/api/profile/activity', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({type: action, eventId}), keepalive: true}).catch(() => {});
+  } catch {/* ignored by design */}
+}
