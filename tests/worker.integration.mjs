@@ -46,7 +46,7 @@ before(async () => {
     },
   });
   db = await mf.getD1Database('DB');
-  for (const file of ['0000_pink_scarlet_spider.sql', '0001_byu_accounts_community.sql', '0002_moderator_inbox.sql', '0003_usage_analytics.sql', '0004_event_moderation.sql', '0005_email_digests.sql', '0006_profile_picks.sql']) {
+  for (const file of ['0000_pink_scarlet_spider.sql', '0001_byu_accounts_community.sql', '0002_moderator_inbox.sql', '0003_usage_analytics.sql', '0004_event_moderation.sql', '0005_email_digests.sql', '0006_profile_picks.sql', '0007_digest_opt_in.sql']) {
     const statements = readFileSync(new URL('../drizzle/' + file, import.meta.url), 'utf8').replaceAll('--> statement-breakpoint', '').split(';').map(s => s.trim()).filter(Boolean);
     await db.batch(statements.map(sql => db.prepare(sql)));
   }
@@ -379,7 +379,7 @@ test('moderators correct, hide, and restore source listings over HTTP', async ()
   assert.ok(!reverted.overridden);
 });
 
-test('the daily digest emails saved-event members once per day and honors opt-out', async () => {
+test('the daily digest is opt-in, emails opted members once per day, and honors unsubscribe', async () => {
   const email = 'digest-member@student.byu.edu';
   const cookie = await login(email, 'digest-test-pass-123');
   // An event later today (Mountain Time) with no end always lands in today's digest.
@@ -389,7 +389,11 @@ test('the daily digest emails saved-event members once per day and honors opt-ou
   assert.equal(published.status, 201, await published.clone().text());
   const listingId = (await published.json()).event.id;
   assert.equal((await request('/api/preferences', {saved: [listingId], views: []}, cookie, {}, 'PUT')).status, 200);
-  assert.equal((await (await request('/api/preferences', null, cookie, {}, 'GET')).json()).digestOptedOut, false);
+  assert.equal((await (await request('/api/preferences', null, cookie, {}, 'GET')).json()).digestOptedIn, false);
+  // The digest is off until the member opts in: saved events alone send nothing.
+  assert.equal((await request('/api/reminders/dispatch?force=1', null, '', {authorization: 'Bearer test-dispatch-token'})).status, 200);
+  assert.ok(!sent.some(message => message.to[0] === email), 'no digest goes out without an explicit opt-in');
+  assert.equal((await request('/api/preferences/digest', {optedIn: true}, cookie)).status, 200);
   // Only the cron holding the shared dispatch token may trigger a send.
   assert.equal((await request('/api/reminders/dispatch', null, '')).status, 403);
   assert.equal((await request('/api/reminders/dispatch', null, '', {authorization: 'Bearer wrong-token'})).status, 403);
@@ -412,16 +416,16 @@ test('the daily digest emails saved-event members once per day and honors opt-ou
   const good = await request('/api/reminders/unsubscribe?' + unsubUrl.searchParams, null, '', {}, 'GET');
   assert.equal(good.status, 200, await good.clone().text());
   assert.match(await good.text(), /unsubscribed/i);
-  assert.equal((await (await request('/api/preferences', null, cookie, {}, 'GET')).json()).digestOptedOut, true);
+  assert.equal((await (await request('/api/preferences', null, cookie, {}, 'GET')).json()).digestOptedIn, false);
   const optedOut = await request('/api/reminders/dispatch?force=1', null, '', {authorization: 'Bearer test-dispatch-token'});
   assert.equal((await optedOut.json()).sent, 0);
   // Re-enabling from the account toggle never re-sends a day that already went out.
-  assert.equal((await request('/api/preferences/digest', {optedOut: false}, cookie)).status, 200);
+  assert.equal((await request('/api/preferences/digest', {optedIn: true}, cookie)).status, 200);
   const reenabled = await request('/api/reminders/dispatch?force=1', null, '', {authorization: 'Bearer test-dispatch-token'});
   assert.equal((await reenabled.json()).sent, 0);
   // The toggle is account-gated and strictly validated.
-  assert.equal((await request('/api/preferences/digest', {optedOut: true})).status, 401);
-  assert.equal((await request('/api/preferences/digest', {optedOut: 'yes'}, cookie)).status, 400);
+  assert.equal((await request('/api/preferences/digest', {optedIn: true})).status, 401);
+  assert.equal((await request('/api/preferences/digest', {optedIn: 'yes'}, cookie)).status, 400);
 });
 
 test('personal picks: chat builds a profile, activity feeds tastes, and signature events are marked', async () => {
@@ -443,6 +447,12 @@ test('personal picks: chat builds a profile, activity feeds tastes, and signatur
   const finished = await (await request('/api/profile/chat', {answers: Array(5).fill({question: 'Which subjects do you care about?', key: 'interests', options: ['Information systems']})}, cookie)).json();
   assert.equal(finished.done, true);
   assert.deepEqual(finished.profile.interests, ['IS']);
+  // Typed free-response answers canonicalize the same way, on the server.
+  const typed = await (await request('/api/profile/chat', {answers: Array(5).fill({question: 'Which subjects do you care about?', key: 'interests', options: [], free: "I'm in IS and I go to AIS stuff — free food is a plus"})}, cookie)).json();
+  assert.equal(typed.done, true);
+  assert.deepEqual([...typed.profile.interests].sort(), ['AIS', 'IS']);
+  assert.deepEqual(typed.profile.details, ['Food provided']);
+  assert.equal((await request('/api/profile/chat', {answers: [{question: 'q', key: 'k', options: [], free: 'x'.repeat(301)}]}, cookie)).status, 400);
   // Signature events carry the Important marker end to end, including
   // community submissions, because flagging is layered at read time.
   const day = new Date(Date.now() + 4 * 86400000).toISOString().slice(0, 10);

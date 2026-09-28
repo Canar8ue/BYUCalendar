@@ -6,8 +6,9 @@ import {json, errorResponse, requireRefreshOrigin, RequestError} from './http.mj
 import {digestWindow, selectDigestEvents, buildDigestEmail, unsubscribeToken, verifyUnsubscribeToken} from './reminders.mjs';
 
 // The daily digest: one morning email per member summarizing the events they
-// saved for that day. A server-cron POST with the shared dispatch token drives
-// it; per-user state in email_digests keeps every run idempotent per day.
+// saved for that day. It is strictly opt-in — nobody is emailed until they
+// turn it on. A server-cron POST with the shared dispatch token drives it;
+// per-user state in email_digests keeps every run idempotent per day.
 
 const SEND_CAP = 200;
 
@@ -22,17 +23,17 @@ function unsubscribeSecret() {
   return secret;
 }
 
-export async function setDigestOptOut(userId: string, optedOut: boolean) {
+export async function setDigestOptIn(userId: string, optedIn: boolean) {
   // last_day survives the toggle so turning the digest back on later never
   // produces a second email on a day one was already sent.
-  await database().prepare("INSERT INTO email_digests(user_id,opted_out,last_day) VALUES(?,?,'') ON CONFLICT(user_id) DO UPDATE SET opted_out=excluded.opted_out")
-    .bind(userId, optedOut ? 1 : 0).run();
+  await database().prepare("INSERT INTO email_digests(user_id,opted_in,last_day) VALUES(?,?,'') ON CONFLICT(user_id) DO UPDATE SET opted_in=excluded.opted_in")
+    .bind(userId, optedIn ? 1 : 0).run();
   return {ok: true};
 }
 
-export async function readDigestOptOut(userId: string) {
-  const row = await database().prepare('SELECT opted_out FROM email_digests WHERE user_id=?').bind(userId).first<{opted_out: number}>();
-  return Boolean(row?.opted_out);
+export async function readDigestOptIn(userId: string) {
+  const row = await database().prepare('SELECT opted_in FROM email_digests WHERE user_id=?').bind(userId).first<{opted_in: number}>();
+  return Boolean(row?.opted_in);
 }
 
 type DigestMember = {user_id: string; email: string; name: string};
@@ -56,7 +57,7 @@ async function sendDigest(db: ReturnType<typeof database>, config: ReturnType<ty
     return false; // last_day stays behind, so the next run retries this member.
   }
   await response.body?.cancel();
-  await db.prepare('INSERT INTO email_digests(user_id,opted_out,last_day,last_sent_at,last_count) VALUES(?,0,?,?,?) ON CONFLICT(user_id) DO UPDATE SET last_day=excluded.last_day,last_sent_at=excluded.last_sent_at,last_count=excluded.last_count')
+  await db.prepare('INSERT INTO email_digests(user_id,opted_in,last_day,last_sent_at,last_count) VALUES(?,1,?,?,?) ON CONFLICT(user_id) DO UPDATE SET last_day=excluded.last_day,last_sent_at=excluded.last_sent_at,last_count=excluded.last_count')
     .bind(member.user_id, day, new Date().toISOString(), events.length).run();
   return true;
 }
@@ -67,9 +68,9 @@ export async function dispatchDigests(force = false) {
   const now = new Date(), window = digestWindow(now);
   if (!window.active && !force) return {day: window.day, skipped: 'The digest sends between 7:00 and 10:00 AM Mountain Time.'};
   const db = database();
-  const rows = (await db.prepare('SELECT u.id AS user_id, u.email AS email, u.name AS name, COALESCE(d.opted_out,0) AS opted_out, COALESCE(d.last_day,\'\') AS last_day FROM auth_user u LEFT JOIN email_digests d ON d.user_id=u.id WHERE u.emailVerified=1')
-    .all<DigestMember & {opted_out: number; last_day: string}>()).results;
-  const pending = rows.filter(row => !row.opted_out && row.last_day !== window.day);
+  const rows = (await db.prepare('SELECT u.id AS user_id, u.email AS email, u.name AS name, COALESCE(d.opted_in,0) AS opted_in, COALESCE(d.last_day,\'\') AS last_day FROM auth_user u LEFT JOIN email_digests d ON d.user_id=u.id WHERE u.emailVerified=1')
+    .all<DigestMember & {opted_in: number; last_day: string}>()).results;
+  const pending = rows.filter(row => row.opted_in === 1 && row.last_day !== window.day);
   if (!pending.length) return {day: window.day, eligible: 0, sent: 0};
   const calendar = await readCalendar();
   let sent = 0;
@@ -131,7 +132,7 @@ export async function unsubscribeRequest(request: Request) {
     }
     const exists = await database().prepare('SELECT 1 AS ok FROM auth_user WHERE id=?').bind(userId).first();
     if (!exists) throw new RequestError(404, 'That account no longer exists.');
-    await setDigestOptOut(userId, true);
+    await setDigestOptIn(userId, false);
     if (request.method === 'POST') return new Response('Unsubscribed', {status: 200, headers: {'Cache-Control': 'no-store'}});
     return digestPage('Unsubscribed', 'You will not receive any more daily digest emails. Your saved events and filters are untouched, and you can turn the digest back on in your account settings.', config.origin, 200);
   } catch (error) {

@@ -1,7 +1,7 @@
 import type {CampusEvent} from '../app/types';
 
 export type TasteProfile = {interests: string[]; categories: string[]; details: string[]; updatedAt?: string};
-export type ChatAnswer = {question: string; key: string; options: string[]};
+export type ChatAnswer = {question: string; key: string; options: string[]; free?: string};
 export type ChatStep = {done: false; question: string; key: string; options: string[]; multiple: boolean} | {done: true; summary: string};
 export type ActivityRow = {kind: string; value: string; score: number; updatedAt?: string};
 export type Pick = {id: string; score: number; reasons: string[]};
@@ -16,6 +16,7 @@ export const ACTIVITY_HALF_LIFE_MS: number;
 export function buildChatPrompt(answers: ChatAnswer[], now?: Date): {role: string; content: string}[];
 export function interpretChatStep(text: string | null | undefined): ChatStep | null;
 export function canonicalAnswer(value: unknown): string;
+export function canonicalFreeText(value: unknown): string[];
 export function profileFromAnswers(answers: ChatAnswer[]): TasteProfile;
 export function profileEmpty(profile: unknown): boolean;
 export function decayedScore(score: number, updatedAt: string, now?: number | Date): number;

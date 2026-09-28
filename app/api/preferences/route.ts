@@ -3,7 +3,7 @@ import {database} from '../../../db';
 import {readAccount, authConfiguration} from '../../../lib/auth';
 import {isVerifiedBYUUser} from '../../../lib/account-policy.mjs';
 import {requireContributor} from '../../../lib/community-store.mjs';
-import {readDigestOptOut} from '../../../lib/reminders-server';
+import {readDigestOptIn} from '../../../lib/reminders-server';
 import {json, readJSON, requireSameOrigin, errorResponse, RequestError} from '../../../lib/http.mjs';
 export const dynamic = 'force-dynamic';
 const list = z.array(z.string().max(250));
@@ -12,13 +12,13 @@ const preferenceSchema = z.object({saved: list.max(2000), views: z.array(z.objec
 export async function GET(request: Request) {
   try {
     const {user} = await readAccount(request);
-    if (!user || !isVerifiedBYUUser(user)) return json({saved: [], views: [], digestOptedOut: false, signedIn: false});
+    if (!user || !isVerifiedBYUUser(user)) return json({saved: [], views: [], digestOptedIn: false, signedIn: false});
     const db = database();
-    const [row, digestOptedOut] = await Promise.all([
+    const [row, digestOptedIn] = await Promise.all([
       db.prepare('SELECT payload FROM user_preferences WHERE user_id=?').bind(user.id).first<{payload: string}>(),
-      readDigestOptOut(user.id),
+      readDigestOptIn(user.id),
     ]);
-    return json({...row ? JSON.parse(row.payload) : {saved: [], views: []}, digestOptedOut, signedIn: true});
+    return json({...row ? JSON.parse(row.payload) : {saved: [], views: []}, digestOptedIn, signedIn: true});
   } catch (error) { return errorResponse(error); }
 }
 

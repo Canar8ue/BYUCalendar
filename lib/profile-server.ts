@@ -7,11 +7,12 @@ import {requireContributor, consumeQuota} from './community-store.mjs';
 import {json, errorResponse, readJSON, requireSameOrigin, RequestError} from './http.mjs';
 import {buildChatPrompt, interpretChatStep, profileFromAnswers, profileEmpty, recommendEvents, ACTIVITY_WEIGHTS, nextActivityScore, CHAT_MAX_STEPS, PROFILE_INTERESTS, PROFILE_DETAILS} from './profile.mjs';
 
-// "Picked for you" personalization: a short quick-reply chat builds a stored
-// interest profile, signed-in activity (views, saves, shares, map/directions,
-// exports) feeds decaying taste counters, and a deterministic scorer turns
-// both into recommendations. The chat model only ever phrases the questions —
-// ranking happens here from the calendar's own vocabularies.
+// "Picked for you" personalization: a short chat (tappable options or the
+// member's own typed words) builds a stored interest profile, signed-in
+// activity (views, saves, shares, map/directions, exports) feeds decaying
+// taste counters, and a deterministic scorer turns both into recommendations.
+// The chat model only ever phrases the questions — ranking happens here from
+// the calendar's own vocabularies.
 
 // Same provider configuration as smart search: the owner's DeepSeek key (or
 // tested alternative) from .env.accounts; without it the chat reports
@@ -31,7 +32,7 @@ async function requestChatStep(answers: ChatAnswer[]) {
   } catch { return null; }
 }
 
-const answerSchema = z.object({question: z.string().min(1).max(160), key: z.string().min(1).max(30), options: z.array(z.string().min(1).max(40)).max(5)}).strict();
+const answerSchema = z.object({question: z.string().min(1).max(160), key: z.string().min(1).max(30), options: z.array(z.string().min(1).max(60)).max(6), free: z.string().max(300).optional()}).strict();
 const chatSchema = z.object({answers: z.array(answerSchema).max(CHAT_MAX_STEPS).default([]), restart: z.boolean().optional()}).strict();
 
 type ChatAnswer = z.infer<typeof answerSchema>;
@@ -123,7 +124,7 @@ export async function recommendationsRequest(request: Request) {
     let savedIds: string[] = [];
     try { const payload = JSON.parse(preferenceRow?.payload || 'null'); if (Array.isArray(payload?.saved)) savedIds = payload.saved; } catch {/* empty preferences */}
     const calendar = await readCalendar();
-    const picks = recommendEvents(calendar.events, {profile, activityRows: activity.results, savedIds, limit: 12});
+    const picks = recommendEvents(calendar.events, {profile, activityRows: activity.results, savedIds, limit: 24});
     return json({hasProfile: !profileEmpty(profile), picks});
   } catch (error) { return errorResponse(error); }
 }

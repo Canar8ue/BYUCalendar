@@ -1,9 +1,10 @@
-// Domain rules for "Picked for you": the quick-reply chat clamp, answer
-// canonicalization onto the calendar vocabularies, decaying taste counters,
-// and the deterministic recommendation pass. No Worker runtime needed.
+// Domain rules for "Picked for you": the chat clamp (tapped options and
+// typed free responses), answer canonicalization onto the calendar
+// vocabularies, decaying taste counters, and the deterministic
+// recommendation pass. No Worker runtime needed.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {buildChatPrompt,interpretChatStep,canonicalAnswer,profileFromAnswers,profileEmpty,decayedScore,nextActivityScore,scoreEvent,recommendEvents,ACTIVITY_HALF_LIFE_MS} from '../lib/profile.mjs';
+import {buildChatPrompt,interpretChatStep,canonicalAnswer,canonicalFreeText,profileFromAnswers,profileEmpty,decayedScore,nextActivityScore,scoreEvent,recommendEvents,ACTIVITY_HALF_LIFE_MS} from '../lib/profile.mjs';
 
 const now=new Date('2026-09-28T18:00:00Z');
 const answers=[
@@ -60,6 +61,32 @@ test('answers canonicalize onto the real vocabularies and caps hold',()=>{
   assert.ok(!profileEmpty(profile));
 });
 
+test('free-response text is mined for vocabulary terms, acronyms stay case-sensitive',()=>{
+  assert.deepEqual(canonicalFreeText("I'm in IS and I love free food").sort(),['Food provided','IS']);
+  assert.deepEqual(canonicalFreeText('information systems with a CS minor').sort(),['Computer Science','IS']);
+  assert.deepEqual(canonicalFreeText('I go to devotionals and study math'),['Faith & learning','Math']);
+  assert.deepEqual(canonicalFreeText('mostly online career workshops').sort(),['Career & business','Online','Workshops']);
+  // The English word "is" never becomes the IS interest; lowercase "ais" neither.
+  assert.deepEqual(canonicalFreeText('what is this even'),[]);
+  assert.deepEqual(canonicalFreeText('im in is, lowercase'),[]);
+  // Unrecognized chatter contributes nothing, and neither does emptiness.
+  assert.deepEqual(canonicalFreeText('robotics and spaceships'),[]);
+  assert.deepEqual(canonicalFreeText('   '),[]);
+  // Typed answers flow into the stored profile exactly like tapped options.
+  const typed=profileFromAnswers([{question:'q',key:'interests',options:[],free:"I'm in IS, I like AIS, and free food matters"}]);
+  assert.deepEqual([...typed.interests].sort(),['AIS','IS']);
+  assert.deepEqual(typed.details,['Food provided']);
+  // Mixed answering: tapped options and typed words in one reply.
+  const mixed=profileFromAnswers([{question:'q',key:'interests',options:['Accounting'],free:'plus networking'}]);
+  assert.deepEqual([...mixed.interests].sort(),['Accounting','Networking']);
+});
+
+test('the chat prompt shows the model the member\'s typed words',()=>{
+  const messages=buildChatPrompt([{question:'Subjects?',key:'interests',options:[],free:'IS and free food'}],now);
+  assert.match(messages[1].content,/typed: IS and free food/);
+  assert.match(messages[0].content,/own words/);
+});
+
 test('taste counters decay with a 45-day half-life',()=>{
   const stamp='2026-09-28T18:00:00.000Z';
   assert.equal(decayedScore(4,stamp,now.getTime()),4);
@@ -93,10 +120,36 @@ test('scoring blends stated interests, activity, and freshness with readable rea
   // Stated interest 2.5 + activity 2*3 + second tag 2.5 + category 1.5 + freshness.
   assert.ok(strong.score>8.5);
   assert.deepEqual(strong.reasons,['IS','Networking','Career & business']);
-  // The weak event only carries the category preference plus its activity drift.
-  assert.deepEqual(weak.reasons,['Accounting','Career & business']);
+  // The weak event carries a neighbor boost (Accounting borders the stated
+  // Networking), its activity drift, and the stated category preference.
+  assert.deepEqual(weak.reasons,['Related: Accounting','Career & business']);
   const fresh=scoreEvent(event({tags:['Accounting'],start:'2026-09-29T17:00:00.000Z'}),{profile,activity,now});
   assert.ok(fresh.score>weak.score,'sooner events rank above identical later ones');
+});
+
+test('one stated interest reaches its neighbors so picks stay general',()=>{
+  const profile={interests:['IS'],categories:[],details:[]};
+  // An AIS club night and a CS lecture both rank for an IS member…
+  const ais=scoreEvent(event({id:'ais',title:'AIS social',tags:['AIS','Clubs'],start:'2026-09-30T17:00:00.000Z'}),{profile,now});
+  const cs=scoreEvent(event({id:'cs',title:'CS lecture',tags:['Computer Science'],start:'2026-10-02T17:00:00.000Z'}),{profile,now});
+  assert.ok(ais&&ais.score>=1.5,'AIS events clear the bar for IS members');
+  assert.ok(ais.reasons.includes('Related: AIS'));
+  assert.ok(cs&&cs.score>=1.5);
+  // …while unrelated campus life stays out and unrelated interests stay quiet.
+  const random=scoreEvent(event({id:'random',title:'Random social',tags:[],category:'Campus life',start:'2026-09-30T17:00:00.000Z'}),{profile,now});
+  const law=scoreEvent(event({id:'law',title:'Law review',tags:['Law'],category:'Academic',start:'2026-09-30T17:00:00.000Z'}),{profile,now});
+  assert.ok(!random||random.score<1.5);
+  assert.ok(!law||law.score<1.5,'Law is neither stated nor related to IS');
+  // The interest's home category carries a small implied weight with its label.
+  const career=scoreEvent(event({id:'career',title:'Recruiting mixer',tags:['Recruiting'],start:'2026-09-30T17:00:00.000Z'}),{profile,now});
+  assert.ok(career&&career.score>=1.5);
+  assert.ok(career.reasons.includes('Career & business'));
+  // End to end: an IS-only profile surfaces the AIS social among its picks.
+  const picks=recommendEvents([
+    event({id:'ais',title:'AIS social',tags:['AIS','Clubs'],start:'2026-09-30T17:00:00.000Z'}),
+    event({id:'random',title:'Random social',tags:[],category:'Campus life',start:'2026-09-30T17:00:00.000Z'}),
+  ],{profile,activityRows:[],savedIds:[],now});
+  assert.deepEqual(picks.map(pick=>pick.id),['ais']);
 });
 
 test('recommendations rank, cap, exclude saved events, and stay quiet without signal',()=>{

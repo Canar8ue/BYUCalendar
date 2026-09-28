@@ -38,6 +38,13 @@ try {
     const statements = readFileSync('drizzle/' + file, 'utf8').replaceAll('--> statement-breakpoint', '').split(';').map(s => s.trim()).filter(Boolean);
     await db.batch(statements.map(sql => db.prepare(sql)));
   }
+  // Migration 0007 alters an existing table, so the table-exists skip above
+  // cannot cover it; the column itself is the idempotency marker.
+  const digestColumns = await db.prepare("SELECT name FROM pragma_table_info('email_digests')").all();
+  if (!digestColumns.results.some(column => column.name === 'opted_in')) {
+    const statements = readFileSync('drizzle/0007_digest_opt_in.sql', 'utf8').replaceAll('--> statement-breakpoint', '').split(';').map(s => s.trim()).filter(Boolean);
+    await db.batch(statements.map(sql => db.prepare(sql)));
+  }
   console.log('LOCAL ACCOUNT SANDBOX:', String(await mf.ready) + 'signin');
   console.log('Only the supplied test address is accepted. Codes appear in this terminal; no email is sent.');
   console.log('Data persists separately in .wrangler/account-sandbox. Restarting signs out test sessions.');
