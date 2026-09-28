@@ -135,21 +135,57 @@ test('one stated interest reaches its neighbors so picks stay general',()=>{
   assert.ok(ais&&ais.score>=1.5,'AIS events clear the bar for IS members');
   assert.ok(ais.reasons.includes('Related: AIS'));
   assert.ok(cs&&cs.score>=1.5);
-  // …while unrelated campus life stays out and unrelated interests stay quiet.
+  // …and unrelated events no longer drop below the bar: preferences rank the
+  // calendar, they never filter it. Related events simply land above them.
   const random=scoreEvent(event({id:'random',title:'Random social',tags:[],category:'Campus life',start:'2026-09-30T17:00:00.000Z'}),{profile,now});
   const law=scoreEvent(event({id:'law',title:'Law review',tags:['Law'],category:'Academic',start:'2026-09-30T17:00:00.000Z'}),{profile,now});
-  assert.ok(!random||random.score<1.5);
-  assert.ok(!law||law.score<1.5,'Law is neither stated nor related to IS');
+  assert.ok(random&&law&&random.score>=1.5&&law.score>=1.5,'unrelated nearby events still make the list');
+  assert.ok(ais.score>law.score&&cs.score>law.score,'related events outrank unrelated ones');
+  assert.ok(law.reasons.every(label=>!label.startsWith('Related: ')),'unrelated events never claim a match');
   // The interest's home category carries a small implied weight with its label.
   const career=scoreEvent(event({id:'career',title:'Recruiting mixer',tags:['Recruiting'],start:'2026-09-30T17:00:00.000Z'}),{profile,now});
   assert.ok(career&&career.score>=1.5);
   assert.ok(career.reasons.includes('Career & business'));
-  // End to end: an IS-only profile surfaces the AIS social among its picks.
+  // End to end: an IS-only profile surfaces the AIS social first, with the
+  // general event still present behind it.
   const picks=recommendEvents([
     event({id:'ais',title:'AIS social',tags:['AIS','Clubs'],start:'2026-09-30T17:00:00.000Z'}),
     event({id:'random',title:'Random social',tags:[],category:'Campus life',start:'2026-09-30T17:00:00.000Z'}),
   ],{profile,activityRows:[],savedIds:[],now});
-  assert.deepEqual(picks.map(pick=>pick.id),['ais']);
+  assert.deepEqual(picks.map(pick=>pick.id),['ais','random']);
+});
+
+test('a stated detail lifts matching events without filtering the rest',()=>{
+  // The reported case: answering "Food provided" must raise food events, not
+  // reduce My calendar to food events only.
+  const profile={interests:[],categories:[],details:['Food provided']};
+  const food=scoreEvent(event({id:'food',title:'Pizza night',tags:['Food provided'],start:'2026-09-30T17:00:00.000Z'}),{profile,now});
+  const plain=scoreEvent(event({id:'plain',title:'Guest lecture',tags:[],start:'2026-09-30T18:00:00.000Z'}),{profile,now});
+  assert.ok(food&&food.score>=1.5);
+  assert.ok(food.reasons.includes('Food provided'));
+  assert.ok(plain&&plain.score>=1.5,'non-matching events stay on the calendar');
+  assert.ok(food.score>plain.score,'the preference ranks food events above the rest');
+  const picks=recommendEvents([
+    event({id:'food',title:'Pizza night',tags:['Food provided'],start:'2026-09-30T17:00:00.000Z'}),
+    event({id:'plain',title:'Guest lecture',tags:[],start:'2026-09-30T18:00:00.000Z'}),
+  ],{profile,activityRows:[],savedIds:[],now});
+  assert.deepEqual(picks.map(pick=>pick.id),['food','plain'],'both appear; the preference only orders them');
+});
+
+test('a plentiful preference cannot crowd general campus picks out of the list',()=>{
+  // 30 food-tagged events outrank every general one for a food-only profile;
+  // the reserved general share keeps the calendar from going food-only anyway.
+  const profile={interests:[],categories:[],details:['Food provided']};
+  const events=[];
+  for(let i=0;i<30;i++)events.push(event({id:'food-'+i,title:'Food event '+i,tags:['Food provided'],start:new Date(Date.parse('2026-09-29T17:00:00.000Z')+i*86400000).toISOString()}));
+  events.push(event({id:'general-1',title:'Guest lecture',tags:[],category:'Academic',start:'2026-09-30T22:00:00.000Z'}));
+  const picks=recommendEvents(events,{profile,activityRows:[],savedIds:[],now,limit:24});
+  assert.ok(picks.some(pick=>pick.id==='general-1'),'general events keep a reserved share of the slots');
+  assert.ok(picks.filter(pick=>pick.reasons[0]==='Campus pick').length>=1);
+  assert.equal(picks[0].id,'food-0','the strongest match still ranks first');
+  // With few matched events, general fill simply takes the remaining slots.
+  const sparse=recommendEvents(events.slice(0,2).concat(events.at(-1)),{profile,activityRows:[],savedIds:[],now,limit:24});
+  assert.ok(sparse.some(pick=>pick.id==='general-1'));
 });
 
 test('recommendations rank, cap, exclude saved events, and stay quiet without signal',()=>{
@@ -161,13 +197,17 @@ test('recommendations rank, cap, exclude saved events, and stay quiet without si
     event({id:'d',title:'Unrelated',tags:[],start:'2026-09-30T19:00:00.000Z'}),
   ];
   const picks=recommendEvents(events,{profile,activityRows:[{kind:'tag',value:'IS',score:2}],savedIds:['a'],now,limit:2});
-  assert.deepEqual(picks.map(p=>p.id),['c']);
+  // With the base score, the general and Accounting events also make the cut
+  // behind the stated-interest picks.
+  assert.deepEqual(picks.map(p=>p.id),['c','b']);
   const ranked=recommendEvents(events,{profile,activityRows:[{kind:'tag',value:'IS',score:2}],savedIds:[],now,limit:10});
-  assert.deepEqual(ranked.map(p=>p.id),['a','c']);
+  assert.deepEqual(ranked.map(p=>p.id),['a','c','b','d']);
   assert.ok(ranked[0].reasons.includes('IS'));
   // No profile and no activity: nothing clears the bar, so the panel shows its prompt instead.
   assert.deepEqual(recommendEvents(events,{profile:null,activityRows:[],now}),[]);
-  // Activity alone can carry a pick when the profile is empty.
+  // Activity alone carries a pick and opens the base-score fill behind it.
   const activityOnly=recommendEvents(events,{profile:null,activityRows:[{kind:'tag',value:'Accounting',score:4}],now});
-  assert.deepEqual(activityOnly.map(p=>p.id),['b']);
+  assert.deepEqual(activityOnly.map(p=>p.id),['b','a','d','c']);
+  // General fill says so honestly instead of claiming a match.
+  assert.deepEqual(activityOnly.find(p=>p.id==='d').reasons,['Campus pick']);
 });

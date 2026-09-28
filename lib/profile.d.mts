@@ -12,6 +12,7 @@ export const PROFILE_DETAILS: string[];
 export const CHAT_MAX_STEPS: number;
 export const ACTIVITY_WEIGHTS: Record<string, number>;
 export const ACTIVITY_HALF_LIFE_MS: number;
+export const RECOMMENDATION_BASE_SCORE: number;
 
 export function buildChatPrompt(answers: ChatAnswer[], now?: Date): {role: string; content: string}[];
 export function interpretChatStep(text: string | null | undefined): ChatStep | null;
@@ -22,4 +23,4 @@ export function profileEmpty(profile: unknown): boolean;
 export function decayedScore(score: number, updatedAt: string, now?: number | Date): number;
 export function nextActivityScore(score: number, updatedAt: string, weight: number, now?: number | Date): number;
 export function scoreEvent(event: CampusEvent, input?: {profile?: TasteProfile | null; activity?: Map<string, number>; savedIds?: string[]; now?: Date}): {score: number; reasons: string[]} | null;
-export function recommendEvents(events: CampusEvent[], input?: {profile?: TasteProfile | null; activityRows?: ActivityRow[]; savedIds?: string[]; now?: Date; limit?: number; threshold?: number}): Pick[];
+export function recommendEvents(events: CampusEvent[], input?: {profile?: TasteProfile | null; activityRows?: ActivityRow[]; savedIds?: string[]; now?: Date; limit?: number; threshold?: number; generalReserve?: number}): Pick[];
