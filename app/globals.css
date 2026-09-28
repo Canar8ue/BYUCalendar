@@ -22,6 +22,27 @@
 .week-grid .day-cell{height:auto;min-height:430px;padding:10px 6px 15px}.week-grid .day-events{gap:8px}.week-grid .calendar-event{height:auto;min-height:61px;display:flex;flex-direction:column;align-items:flex-start;padding:7px 7px 8px;gap:4px;border-left-width:3px}.week-grid .calendar-event .event-time{display:block;font-size:12px}.week-grid .calendar-event>span:not(.event-time){white-space:normal;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;line-height:1.4;font-size:12px;overflow:hidden}.week-grid .day-number{margin-bottom:13px}.week-grid .day-cell{border-bottom:0}.week-grid .day-number>span{display:none}@media(max-width:650px){.week-grid .day-cell{padding:8px 3px;min-height:390px}.week-grid .calendar-event{padding:5px 3px;min-height:65px}.week-grid .calendar-event .event-time{font-size:12px}.week-grid .calendar-event>span:not(.event-time){font-size:12px;word-break:normal;-webkit-line-clamp:4}.calendar-toolbar h2{font-size:16px}.calendar-actions{gap:1px}.view-toggle button{padding:5px}.month-navigation button{width:22px}}
 .cancelled-label{color:var(--red)}
 
+/* First-visit tour: small dismissible pointers, never a screen takeover. */
+.searchbar-wrap{position:relative}
+.tour-pop{position:absolute;top:calc(100% + 10px);left:0;z-index:30;width:min(370px,calc(100vw - 60px));background:#fff;border:1.5px solid var(--ink);border-radius:10px;box-shadow:3px 3px 0 var(--ink);padding:14px 15px;text-align:left}
+.tour-pop::before{content:'';position:absolute;top:-7.5px;left:27px;width:12px;height:12px;background:#fff;border-left:1.5px solid var(--ink);border-top:1.5px solid var(--ink);transform:rotate(45deg)}
+.tour-kicker{font:700 10px var(--font-mono);letter-spacing:.09em;color:var(--blue-d);margin-bottom:7px}
+.tour-pop p{font-size:13.5px;line-height:1.6;color:var(--ink2);margin:0 0 12px}
+.tour-pop b,.tour-line b{color:var(--ink)}
+.tour-actions{display:flex;gap:10px;align-items:center}
+.tour-actions .primary-button{font-size:13px;min-height:34px;padding:7px 13px}
+.tour-actions .text-button{font-size:13px;margin-left:auto;padding:4px}
+.tour-spotlight{outline:2.5px solid var(--blue);outline-offset:2px;border-radius:8px;animation:tour-pulse 2.2s ease-in-out infinite}
+@keyframes tour-pulse{0%,100%{outline-color:var(--blue)}50%{outline-color:#a5c8fa}}
+.tour-card{margin-top:18px;border:1.5px solid var(--ink);border-radius:10px;box-shadow:3px 3px 0 var(--ink);padding:15px 16px;background:#fff}
+.tour-card .tour-kicker{margin-bottom:9px}
+.tour-line{display:flex;gap:10px;align-items:flex-start;font-size:13.5px;color:var(--ink2);line-height:1.55;margin:8px 0}
+.tour-line:first-of-type{margin-top:2px}
+.tour-line svg{color:var(--blue);margin-top:2px;flex-shrink:0}
+.tour-link{color:var(--blue-d);font-weight:500;text-decoration:underline;text-underline-offset:2px}
+.tour-card .tour-actions{margin-top:12px}
+@media(max-width:650px){.tour-pop{width:calc(100vw - 30px)}.tour-actions .primary-button{font-size:12px;padding:7px 10px}}
+
 /* The campus map shares calendar filters, event colors, and day dialogs. */
 .view-toggle .map-view-toggle{border-left:1px solid var(--line);margin-left:4px;padding-left:10px}
 .map-surface .calendar-toolbar{flex-wrap:wrap;gap:12px}
