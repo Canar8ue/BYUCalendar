@@ -442,6 +442,21 @@ test('personal picks: chat builds a profile, activity feeds tastes, and signatur
   assert.equal(first.done, false);
   assert.equal(first.step.key, 'interests');
   assert.ok(first.step.options.length >= 2);
+  // A typed answer takes effect immediately, before the conversation
+  // completes — a member who closes the dialog mid-chat keeps what they typed.
+  const partialMember = await login('progressive-member@student.byu.edu');
+  const partial = await (await request('/api/profile/chat', {answers: [{question: 'Which subjects do you care about?', key: 'interests', options: [], free: "I'm in AIS club and I'm an IS student"}]}, partialMember)).json();
+  assert.equal(partial.done, false, 'the model asked its next question');
+  const partialPicks = await (await request('/api/recommendations', null, partialMember, {}, 'GET')).json();
+  assert.equal(partialPicks.hasProfile, true);
+  assert.deepEqual([...partialPicks.profile.interests].sort(), ['AIS', 'IS']);
+  assert.ok(partialPicks.picks.length > 0);
+  assert.ok(partialPicks.picks.some(pick => pick.reasons.includes('IS') || pick.reasons.includes('AIS')), 'IS/AIS events surface from the partial profile');
+  // A follow-up exchange that contributes nothing new cannot wipe the mined
+  // interests.
+  await request('/api/profile/chat', {answers: [{question: 'Which subjects do you care about?', key: 'interests', options: [], free: 'AIS club'}, {question: 'Anything else?', key: 'extra', options: []}]}, partialMember);
+  const afterSkip = await (await request('/api/recommendations', null, partialMember, {}, 'GET')).json();
+  assert.deepEqual([...afterSkip.profile.interests].sort(), ['AIS', 'IS']);
   // A finished conversation stores the canonicalized profile ("Information
   // systems" -> IS) without another model call.
   const finished = await (await request('/api/profile/chat', {answers: Array(5).fill({question: 'Which subjects do you care about?', key: 'interests', options: ['Information systems']})}, cookie)).json();

@@ -20,6 +20,7 @@ export function canonicalAnswer(value: unknown): string;
 export function canonicalFreeText(value: unknown): string[];
 export function profileFromAnswers(answers: ChatAnswer[]): TasteProfile;
 export function profileEmpty(profile: unknown): boolean;
+export function mergeProfiles(existing: TasteProfile | null | undefined, update: TasteProfile | null | undefined): TasteProfile;
 export function decayedScore(score: number, updatedAt: string, now?: number | Date): number;
 export function nextActivityScore(score: number, updatedAt: string, weight: number, now?: number | Date): number;
 export function scoreEvent(event: CampusEvent, input?: {profile?: TasteProfile | null; activity?: Map<string, number>; savedIds?: string[]; now?: Date}): {score: number; reasons: string[]} | null;

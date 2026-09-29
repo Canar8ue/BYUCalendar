@@ -44,12 +44,13 @@ export default function CalendarApp(){
  // shown on My calendar; refreshed whenever the saved set changes because
  // picks deliberately exclude events already saved.
  type Pick={id:string;score:number;reasons:string[]};
- const [picks,setPicks]=useState<{hasProfile:boolean;picks:Pick[]}|null>(null);
- const loadPicks=useCallback(async()=>{try{setPicks(await getJSON<{hasProfile:boolean;picks:Pick[]}>('/api/recommendations'));}catch{setPicks(null);}},[]);
+ type StoredProfile={interests:string[];categories:string[];details:string[];updatedAt?:string};
+ const [picks,setPicks]=useState<{hasProfile:boolean;profile:StoredProfile|null;picks:Pick[]}|null>(null);
+ const loadPicks=useCallback(async()=>{try{setPicks(await getJSON<{hasProfile:boolean;profile:StoredProfile|null;picks:Pick[]}>('/api/recommendations'));}catch{setPicks(null);}},[]);
  useEffect(()=>{
   if(!signedIn||section!=='saved')return;
   let active=true;
-  getJSON<{hasProfile:boolean;picks:Pick[]}>('/api/recommendations').then(d=>{if(active)setPicks(d);}).catch(()=>{if(active)setPicks(null);});
+  getJSON<{hasProfile:boolean;profile:StoredProfile|null;picks:Pick[]}>('/api/recommendations').then(d=>{if(active)setPicks(d);}).catch(()=>{if(active)setPicks(null);});
   return()=>{active=false;};
  },[signedIn,section,preferences.saved.length]);
  // Recommended events join the saved set inside My calendar, visibly tagged
@@ -194,7 +195,7 @@ export default function CalendarApp(){
  <div className="calendar-layout"><aside className={'filters-panel '+(mobileFilters?'mobile-open':'')}><Filters/>{mobileFilters&&<button className="primary-button apply-mobile" onClick={()=>setMobileFilters(false)}>Show events <ArrowRight size={16}/></button>}</aside><div className="results-area">
  {section==='saved'&&<section className="picks-panel" aria-label="Picked for you">
   <div className="picks-head">
-   <div><div className="section-label">PICKED FOR YOU</div><h3>Events the calendar picked for you</h3></div>
+   <div><div className="section-label">PICKED FOR YOU</div><h3>Events the calendar picked for you</h3>{picks?.profile&&[...picks.profile.interests,...picks.profile.categories,...picks.profile.details].length>0&&<p className="picks-following">Following your picks: {[...picks.profile.interests,...picks.profile.categories,...picks.profile.details].join(' · ')}</p>}</div>
    {signedIn&&<button className="outline-button" onClick={()=>setModal('profile')}><Sparkles size={15}/>{picks?.hasProfile?'Tune your picks':'Get started'}</button>}
   </div>
   {!signedIn?(
@@ -230,6 +231,6 @@ export default function CalendarApp(){
  {modal==='edit'&&selected&&<div className="contribution-dialog"><button className="text-button" onClick={()=>setModal('event')}><ChevronLeft size={15}/> Back to listing</button><div className="eyebrow">KEEP IT CURRENT</div><h2>{selected.community?'Edit your listing.':'Correct this listing.'}</h2><p className="modal-intro">{selected.title}</p>{selected.community?(account?.permissions.addListings?<EditListingForm key={selected.id} event={selected} moderator={isModerator&&!myListings.has(selected.id)} onComplete={contributionComplete}/>:<ContributionGate account={account} action="edit your listing" returnTo={returnTo}/>):(isModerator?<ModeratorEditForm key={selected.id} event={selected} onComplete={contributionComplete}/>:null)}</div>}
  {modal==='confirm-delete'&&selected&&<div className="contribution-dialog"><div className="eyebrow">{selected.community&&!isModerator?'REMOVE YOUR LISTING':'REMOVE THIS LISTING'}</div><h2>{selected.community&&!isModerator?'Delete your listing?':'Delete this listing?'}</h2><p className="modal-intro">{selected.title}</p><p className="account-description">{isModerator&&!selected.community?'This hides the listing from BYU Calendar. The connected source keeps its copy, and moderators can restore the listing from Review reports.':'This permanently removes your listing along with its community tags and reports. This cannot be undone.'}</p>{deleteError&&<p className="form-error" role="alert">{deleteError}</p>}<div className="account-actions"><button className="primary-button" disabled={deleting} onClick={()=>void deleteSelected()}><Trash2 size={16}/>{deleting?'Deleting…':isModerator&&!selected.community?'Hide from BYU Calendar':'Delete permanently'}</button><button className="outline-button" disabled={deleting} onClick={()=>setModal('event')}>Keep it</button></div></div>}
  {modal==='search'&&<div className="search-dialog"><span className="empty-icon"><Sparkles size={28}/></span><h2>Search like you mean it.</h2><p className="modal-intro">Combine interests, food, dates, and times — or describe what you feel like. Supported phrases translate into filters, and when a phrase is too natural for exact matching, smart search interprets it and shows its reading above the results.</p><div className="search-examples">{['free food this week','shows this weekend','clubs tomorrow','workshops after 5 pm','IS networking'].map(q=><button key={q} onClick={()=>{quick(q);setModal(null);}}><Search size={15}/>{q}<ArrowUpRight size={15}/></button>)}</div><p className="source-note">Try today, tomorrow, this week, next week, this weekend, or this month. Search is based on published details; it won’t invent food or eligibility information.</p></div>}
- {modal==='profile'&&<ProfileChat onFinished={()=>{setModal(null);void loadPicks();setToast('Your picks are ready.');}}/>}
+ {modal==='profile'&&<ProfileChat onFinished={()=>{setModal(null);void loadPicks();setToast('Your picks are ready.');}} onUpdated={()=>{void loadPicks();}}/>}
  </dialog>{toast&&<div className="toast" role="status"><Info size={17}/><span>{toast}</span><button aria-label="Dismiss notification" onClick={()=>setToast('')}><X size={15}/></button></div>}</div>;
 }

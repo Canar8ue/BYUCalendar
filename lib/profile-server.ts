@@ -5,7 +5,7 @@ import {readCalendar} from './calendar-server';
 import {readAccount, authConfiguration} from './auth';
 import {requireContributor, consumeQuota} from './community-store.mjs';
 import {json, errorResponse, readJSON, requireSameOrigin, RequestError} from './http.mjs';
-import {buildChatPrompt, interpretChatStep, profileFromAnswers, profileEmpty, recommendEvents, ACTIVITY_WEIGHTS, nextActivityScore, CHAT_MAX_STEPS, PROFILE_INTERESTS, PROFILE_DETAILS} from './profile.mjs';
+import {buildChatPrompt, interpretChatStep, profileFromAnswers, profileEmpty, mergeProfiles, recommendEvents, ACTIVITY_WEIGHTS, nextActivityScore, CHAT_MAX_STEPS, PROFILE_INTERESTS, PROFILE_DETAILS} from './profile.mjs';
 
 // "Picked for you" personalization: a short chat (tappable options or the
 // member's own typed words) builds a stored interest profile, signed-in
@@ -60,6 +60,18 @@ export async function profileChatRequest(request: Request) {
       parsed.data.answers = [];
     }
     if (!await consumeQuota(db, `profile-chat:${user.id}`, 60, 86400)) throw new RequestError(429, 'That is enough chat for today. Please try again tomorrow.');
+    // Progressive storage: every exchange is merged into the stored profile
+    // before the model is asked for the next question, so a typed answer
+    // takes effect immediately — even if the member closes the dialog
+    // mid-conversation or the model call fails. A skipped answer contributes
+    // nothing, so it cannot wipe what is already stored; a completed
+    // conversation (below) replaces the profile wholesale.
+    if (parsed.data.answers.length > 0) {
+      const partial = profileFromAnswers(parsed.data.answers);
+      if (!profileEmpty(partial)) {
+        await storeProfile(user.id, {...mergeProfiles(await readProfile(user.id), partial), updatedAt: new Date().toISOString()});
+      }
+    }
     // A finished conversation (or the step cap) stores the profile and stops
     // asking; the model sees only the question/answer wording, never events
     // or account data.
@@ -125,6 +137,6 @@ export async function recommendationsRequest(request: Request) {
     try { const payload = JSON.parse(preferenceRow?.payload || 'null'); if (Array.isArray(payload?.saved)) savedIds = payload.saved; } catch {/* empty preferences */}
     const calendar = await readCalendar();
     const picks = recommendEvents(calendar.events, {profile, activityRows: activity.results, savedIds, limit: 24});
-    return json({hasProfile: !profileEmpty(profile), picks});
+    return json({hasProfile: !profileEmpty(profile), profile: profile ?? null, picks});
   } catch (error) { return errorResponse(error); }
 }

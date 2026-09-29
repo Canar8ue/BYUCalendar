@@ -14,7 +14,7 @@ type ChatAnswer = {question: string; key: string; options: string[]; free?: stri
 type ChatResponse = {done: boolean; step?: ChatStep; summary?: string};
 type Message = {role: 'bot' | 'you'; text: string};
 
-export default function ProfileChat({onFinished}: {onFinished: () => void}) {
+export default function ProfileChat({onFinished, onUpdated}: {onFinished: () => void; onUpdated?: () => void}) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [step, setStep] = useState<ChatStep | null>(null);
   const [answers, setAnswers] = useState<ChatAnswer[]>([]);
@@ -56,8 +56,12 @@ export default function ProfileChat({onFinished}: {onFinished: () => void}) {
     setBusy(true); setError('');
     try {
       apply(await postJSON<ChatResponse>('/api/profile/chat', restart ? {restart: true} : {answers: next}, 45000));
+      // The server stores answers progressively, so the picks panel behind
+      // the dialog can refresh after every exchange.
+      onUpdated?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'The picks chat is briefly unavailable.');
+      onUpdated?.();
     } finally { setBusy(false); }
   }
 

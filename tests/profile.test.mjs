@@ -4,7 +4,7 @@
 // recommendation pass. No Worker runtime needed.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {buildChatPrompt,interpretChatStep,canonicalAnswer,canonicalFreeText,profileFromAnswers,profileEmpty,decayedScore,nextActivityScore,scoreEvent,recommendEvents,ACTIVITY_HALF_LIFE_MS} from '../lib/profile.mjs';
+import {buildChatPrompt,interpretChatStep,canonicalAnswer,canonicalFreeText,profileFromAnswers,profileEmpty,mergeProfiles,decayedScore,nextActivityScore,scoreEvent,recommendEvents,ACTIVITY_HALF_LIFE_MS} from '../lib/profile.mjs';
 
 const now=new Date('2026-09-28T18:00:00Z');
 const answers=[
@@ -153,6 +153,22 @@ test('one stated interest reaches its neighbors so picks stay general',()=>{
     event({id:'random',title:'Random social',tags:[],category:'Campus life',start:'2026-09-30T17:00:00.000Z'}),
   ],{profile,activityRows:[],savedIds:[],now});
   assert.deepEqual(picks.map(pick=>pick.id),['ais','random']);
+});
+
+test('partial chat storage merges into the stored profile instead of wiping it',()=>{
+  const existing={interests:['IS','AIS'],categories:[],details:['Food provided']};
+  const merged=mergeProfiles(existing,{interests:['Accounting'],categories:['Campus life'],details:[]});
+  assert.deepEqual([...merged.interests].sort(),['AIS','Accounting','IS']);
+  assert.deepEqual(merged.details,['Food provided'],'an exchange that says nothing new keeps what is stored');
+  assert.deepEqual(merged.categories,['Campus life']);
+  // Caps still hold after a merge; existing values keep their seats first.
+  const ten=Array.from({length:10},(_,i)=>'I'+i);
+  const capped=mergeProfiles({interests:ten,categories:[],details:[]},{interests:['Extra'],categories:[],details:[]});
+  assert.equal(capped.interests.length,10);
+  assert.ok(!capped.interests.includes('Extra'));
+  // Empty or missing profiles merge cleanly either way.
+  assert.deepEqual(mergeProfiles(null,{interests:['IS'],categories:[],details:[]}).interests,['IS']);
+  assert.deepEqual(mergeProfiles(existing,{interests:[],categories:[],details:[]}).interests,['IS','AIS']);
 });
 
 test('a stated detail lifts matching events without filtering the rest',()=>{
