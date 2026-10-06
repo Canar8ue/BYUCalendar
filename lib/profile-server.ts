@@ -56,7 +56,13 @@ export async function profileChatRequest(request: Request) {
     if (!parsed.success) throw new RequestError(400, 'Check your answers and try again.');
     const db = database();
     if (parsed.data.restart) {
-      await db.prepare('DELETE FROM user_profiles WHERE user_id=?').bind(user.id).run();
+      // Tuning the picks starts the member over completely: the stored profile
+      // and the activity-built taste counters both clear, so the rebuilt picks
+      // reflect only what the new conversation says.
+      await db.batch([
+        db.prepare('DELETE FROM user_profiles WHERE user_id=?').bind(user.id),
+        db.prepare('DELETE FROM profile_activity WHERE user_id=?').bind(user.id),
+      ]);
       parsed.data.answers = [];
     }
     if (!await consumeQuota(db, `profile-chat:${user.id}`, 60, 86400)) throw new RequestError(429, 'That is enough chat for today. Please try again tomorrow.');

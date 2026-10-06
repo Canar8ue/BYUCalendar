@@ -488,5 +488,22 @@ test('personal picks: chat builds a profile, activity feeds tastes, and signatur
   const pick = picks.picks.find(p => p.id === fairId);
   assert.ok(pick, 'expected the STEM fair among picks');
   assert.ok(pick.reasons.length > 0);
+  // Tuning the picks restarts the member completely: restart clears the
+  // stored profile and the activity taste counters, so the rebuilt picks
+  // reflect only what the new conversation says.
+  const restarted = await (await request('/api/profile/chat', {restart: true}, cookie)).json();
+  assert.equal(restarted.done, false, 'the model asks a fresh first question');
+  const wiped = await (await request('/api/recommendations', null, cookie, {}, 'GET')).json();
+  assert.equal(wiped.hasProfile, false);
+  assert.equal(wiped.profile, null);
+  assert.deepEqual(wiped.picks, [], 'activity tastes cleared with the profile');
+  // The next conversation rebuilds the profile from its answers alone.
+  const rebuilt = await (await request('/api/profile/chat', {answers: Array(5).fill({question: 'Which subjects do you care about?', key: 'interests', options: [], free: 'AIS and free food'})}, cookie)).json();
+  assert.equal(rebuilt.done, true);
+  const fresh = await (await request('/api/recommendations', null, cookie, {}, 'GET')).json();
+  assert.equal(fresh.hasProfile, true);
+  assert.deepEqual([...fresh.profile.interests], ['AIS']);
+  assert.deepEqual(fresh.profile.details, ['Food provided']);
+  assert.ok(fresh.picks.length > 0, 'picks rebuild from the new answers');
 });
 

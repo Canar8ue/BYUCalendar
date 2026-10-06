@@ -188,20 +188,46 @@ test('a stated detail lifts matching events without filtering the rest',()=>{
   assert.deepEqual(picks.map(pick=>pick.id),['food','plain'],'both appear; the preference only orders them');
 });
 
-test('a plentiful preference cannot crowd general campus picks out of the list',()=>{
-  // 30 food-tagged events outrank every general one for a food-only profile;
-  // the reserved general share keeps the calendar from going food-only anyway.
+test('matches fill the picks before any general campus fill',()=>{
+  // 30 food-tagged events outrank every general one for a food-only profile:
+  // the picks belong to the matches, and general fill waits for spare slots.
   const profile={interests:[],categories:[],details:['Food provided']};
   const events=[];
   for(let i=0;i<30;i++)events.push(event({id:'food-'+i,title:'Food event '+i,tags:['Food provided'],start:new Date(Date.parse('2026-09-29T17:00:00.000Z')+i*86400000).toISOString()}));
   events.push(event({id:'general-1',title:'Guest lecture',tags:[],category:'Academic',start:'2026-09-30T22:00:00.000Z'}));
   const picks=recommendEvents(events,{profile,activityRows:[],savedIds:[],now,limit:24});
-  assert.ok(picks.some(pick=>pick.id==='general-1'),'general events keep a reserved share of the slots');
-  assert.ok(picks.filter(pick=>pick.reasons[0]==='Campus pick').length>=1);
+  assert.equal(picks.length,24);
+  assert.ok(!picks.some(pick=>pick.id==='general-1'),'plentiful matches leave no room for general fill');
   assert.equal(picks[0].id,'food-0','the strongest match still ranks first');
-  // With few matched events, general fill simply takes the remaining slots.
+  // With fewer matches than slots, general fill takes exactly the remainder.
   const sparse=recommendEvents(events.slice(0,2).concat(events.at(-1)),{profile,activityRows:[],savedIds:[],now,limit:24});
   assert.ok(sparse.some(pick=>pick.id==='general-1'));
+  assert.equal(sparse.filter(pick=>pick.reasons[0]==='Campus pick').length,1);
+});
+
+test("an AIS member who likes free food gets AIS, IS-related, and food events",()=>{
+  // The owner's example: telling the chat "I'm into AIS and I also like free
+  // food" fills the picks with AIS events, IS-related events, and free food
+  // across campus (snack tables included) — general campus fill comes last
+  // and only when matches run short.
+  const profile={interests:['AIS'],categories:[],details:['Food provided']};
+  const picks=recommendEvents([
+    event({id:'general-1',title:'Intramurals',tags:[],category:'Sports & recreation',start:'2026-09-30T22:00:00.000Z'}),
+    event({id:'ais-1',title:'AIS networking social',tags:['AIS','Networking'],start:'2026-09-30T17:00:00.000Z'}),
+    event({id:'is-1',title:'IS webinar',tags:['IS'],start:'2026-10-01T17:00:00.000Z'}),
+    event({id:'food-1',title:'KPMG pizza lunch',tags:['Food provided'],category:'Campus life',start:'2026-10-02T17:00:00.000Z'}),
+    event({id:'snack-1',title:'Study break',tags:['Snacks'],category:'Campus life',start:'2026-10-02T18:00:00.000Z'}),
+  ],{profile,activityRows:[],savedIds:[],now});
+  assert.deepEqual(picks.map(pick=>pick.id),['ais-1','is-1','food-1','snack-1','general-1']);
+  assert.deepEqual(picks[0].reasons,['AIS','Related: Networking','Career & business']);
+  assert.deepEqual(picks[1].reasons,['Related: IS','Career & business']);
+  assert.deepEqual(picks[2].reasons,['Food provided']);
+  assert.deepEqual(picks[3].reasons,['Related: Snacks']);
+  assert.deepEqual(picks[4].reasons,['Campus pick']);
+  // A stated detail also lifts its neighbors on an event with no interest tag.
+  const snack=scoreEvent(event({id:'snack-2',title:'Candy table',tags:['Snacks'],start:'2026-09-30T17:00:00.000Z'}),{profile,now});
+  assert.ok(snack&&snack.score>=1.5);
+  assert.ok(snack.reasons.includes('Related: Snacks'));
 });
 
 test('recommendations rank, cap, exclude saved events, and stay quiet without signal',()=>{

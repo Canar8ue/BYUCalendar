@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {MeshoptDecoder} from './vendor/meshopt_decoder.module.js';
-import {loadValleyContext} from './valley-context.js?v=20260922';
+import {loadValleyContext} from './valley-context.js?v=20261005';
 
 const stage=document.getElementById('map'),labels=document.getElementById('labels'),loading=document.getElementById('loading');
 const send=data=>parent.postMessage({channel:'byu-calendar-map',...data},location.origin);
@@ -126,7 +126,7 @@ try{
   });
   renderer.domElement.addEventListener('webglcontextlost',event=>{event.preventDefault();loading.hidden=false;loading.textContent='3D graphics paused. Reload the page to restore the map. Events are still available below.';send({type:'error'});});
   const loader=new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
-  const [gltf,catalog]=await Promise.all([loader.loadAsync('./campus_web.glb'),fetch('./coordinates.json').then(r=>{if(!r.ok)throw new Error('Location data unavailable');return r.json();})]);
+  const [gltf,catalog]=await Promise.all([loader.loadAsync('./campus_web.glb?v=20261005'),fetch('./coordinates.json?v=20261005').then(r=>{if(!r.ok)throw new Error('Location data unavailable');return r.json();})]);
   model=gltf.scene;features=catalog.features;scene.add(model);model.updateMatrixWorld(true);model.traverse(o=>{if(o.isMesh&&o.geometry.getAttribute('_feature_id'))pickMeshes.push(o);});
   ready=true;loading.hidden=true;reset();buildPins();send({type:'ready'});
   loadValleyContext(loader,scene,camera,invalidate);

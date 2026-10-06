@@ -30,6 +30,10 @@ Per-feature URLs and source notes are included in `coordinates.json`.
 
 East-side road completion uses an additional OpenStreetMap API extract retrieved September 15, 2026. The added 900 East and connecting road segments retain per-way source URLs in Blender object metadata. The existing OpenStreetMap attribution and ODbL terms also apply to these additions.
 
+### October 5, 2026 exterior detail correction
+
+New comparisons use BYU Magazine's [completed Arts Building exterior](https://magazine.byu.edu/article/new-byu-arts-building/), Okland's [Indoor Practice Facility photographs](https://www.okland.com/markets/higher-education/byu-indoor-practice-facility/) and the previously cited library, Hinckley, Music and [JFSB courtyard](https://travelphotobase.com/i/USUT/UTP142.JPG) photographs. These inform simplified geometry and colors only. Reference images remain in the source audit cache and are not redistributed in the packages or used as textures. Dimensions and unseen details remain approximate.
+
 ## Web software
 
 - [Three.js](https://github.com/mrdoob/three), version 0.180.0, MIT license. License text: `web/vendor/LICENSE-three.txt` (or `vendor/LICENSE-three.txt` in the standalone web archive).
