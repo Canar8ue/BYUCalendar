@@ -52,7 +52,7 @@ test('the digest email renders plain and HTML versions with escaped source text'
     origin: 'https://byucalendar.com',
   });
   assert.equal(email.subject, 'BYU Calendar: your saved events for Tuesday, September 29');
-  assert.ok(email.text.includes('Hi Jordan,'), email.text);
+  assert.ok(email.text.includes('Hi Casey,'), email.text);
   assert.ok(email.text.includes('You saved 2 events on BYU Calendar for Tuesday, September 29'));
   assert.ok(email.text.includes('11:00 AM'), email.text);
   assert.ok(email.text.includes('AIS weekly meeting\n  11:00 AM · TNRB 260\n  https://byucalendar.com/events/byu%3Aone'));

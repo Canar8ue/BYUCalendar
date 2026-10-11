@@ -70,9 +70,9 @@ These items remain after the review and deployment:
   through the staged helper. The post-deploy checks returned 200 for the
   homepage, sign-in, privacy, events, and account endpoints; the new headers
   were present; cross-site refresh returned 403; and the prior build/runtime
-  remains at `/home/deploy/byucalendar/release-backup-20260917T155627Z-1405`.
+  is kept on the server as a timestamped `release-backup-*` directory.
 - The Resend API key was previously shared during setup and still needs to be
-  revoked and replaced in `/home/deploy/byucalendar/.env.accounts`. Do this
+  revoked and replaced in the server's `.env.accounts` file. Do this
   before treating the deployment as fully remediated.
 - A real authorized BYU inbox delivery test and administrator allowlist still
   need owner-provided addresses. The local account and Worker tests intercept

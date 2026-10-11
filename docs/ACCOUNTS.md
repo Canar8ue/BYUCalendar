@@ -2,7 +2,7 @@
 
 **Activated September 16, 2026**: the account system is live with password sign-up/sign-in and Resend email delivery from `auth.byucalendar.com` (verified domain). Migration 0001 was applied to live D1 on September 15, 2026, when the account build first deployed in its safe coming-soon state.
 
-**September 18, 2026**: the moderator message inbox went live (migration 0002 applied to live D1). Mail to `privacy@byucalendar.com` arrives through Resend Inbound, appears at `/moderation/emails`, and moderators reply from the same address. `CALENDAR_ADMIN_EMAILS` now contains `admin@byu.edu`. The one remaining setup step is adding the receiving MX record in Cloudflare DNS (see below).
+**September 18, 2026**: the moderator message inbox went live (migration 0002 applied to live D1). Mail to `privacy@byucalendar.com` arrives through Resend Inbound, appears at `/moderation/emails`, and moderators reply from the same address. `CALENDAR_ADMIN_EMAILS` lists the team's BYU administrator addresses. The one remaining setup step is adding the receiving MX record in Cloudflare DNS (see below).
 
 ## Sign-in and permissions
 
@@ -24,7 +24,7 @@ Community listings carry a community label and organizer name. Community tag not
 
 Authors manage their own listings from the event dialog: the server decides authorship from the signed-in session (via a private `/api/listings/mine` check), and the public event feed never exposes who authored a listing. Edits re-run full listing validation and keep the event id, so tags and moderation survive; edits do not lift a moderator's hide. Deleting is author-only and irreversible; administrators continue to use reversible hide/restore.
 
-No first-user administrator rule exists. An empty administrator list means nobody can access `/moderation`. Public event responses exclude account email addresses, author IDs, and report contents. Legacy platform identity headers are ignored; bookmarks under former simulated/platform IDs are not automatically moved to new accounts because there is no verified identity mapping.
+No first-user administrator rule exists. An empty administrator list means nobody can access `/moderation`. Public event responses exclude account email addresses, author IDs, and report contents. Legacy platform identity headers are ignored; bookmarks under former placeholder IDs are not automatically moved to new accounts because there is no verified identity mapping.
 
 ## What is needed to enable email
 
@@ -39,7 +39,7 @@ No first-user administrator rule exists. An empty administrator list means nobod
 | `CALENDAR_INBOX_ADDRESS` | Optional inbox address; defaults to `privacy@byucalendar.com` |
 | `REMINDERS_DISPATCH_TOKEN` | Shared secret the server cron sends as `Authorization: Bearer …` to `POST /api/reminders/dispatch`; generate with `openssl rand -hex 32`. Without it the dispatch endpoint rejects every request. |
 
-The Resend domain `auth.byucalendar.com` is verified (configured September 2026); keys live only in the server's private environment file, never in Git, the public source registry, or the browser bundle. If the key is rotated or the domain changes, update `/home/deploy/byucalendar/.env.accounts` and restart the service.
+The Resend domain `auth.byucalendar.com` is verified (configured September 2026); keys live only in the server's private environment file, never in Git, the public source registry, or the browser bundle. If the key is rotated or the domain changes, update the server's `.env.accounts` file and restart the service.
 
 ## Daily digest of saved events
 
@@ -55,9 +55,9 @@ The preference works in both directions without support: the toggle on `/account
 - **Replying** — `POST /api/emails/reply` (same-origin, moderator session) sends plain text through `POST /api.resend.com/emails` from `BYU Calendar <privacy@byucalendar.com>` with `In-Reply-To`/`References` headers so the requester's mail client threads it. Replies are stored in `email_replies`, mark the message read/replied, and are limited to 20 per moderator per day. Sending requires the `byucalendar.com` sending domain to stay verified in Resend (it is, since September 2026).
 - **Listing** — `GET /api/emails` returns the 100 most recent messages with their replies to moderators; `POST /api/emails/read` marks one read. When `RESEND_INBOUND_SECRET` is absent, the page and API report "not configured" instead of pretending.
 
-Setup completed September 18, 2026 via the Resend API (key used server-side only): receiving was enabled on the existing verified `byucalendar.com` domain (PATCH `/domains/:id` capabilities), webhook `[webhook-id]` was created for `https://byucalendar.com/api/emails/inbound` with the `email.received` event, and its signing secret is in `.env.accounts` as `RESEND_INBOUND_SECRET`. The owner then supplied a Cloudflare API token, stored **only** in Git-ignored env files — `.env.cloudflare` in the repo root (matched by the `.env*` ignore rule) and `/home/deploy/byucalendar/.env.cloudflare` (mode 600) on the server; the value is never written to tracked files. That token added the receiving MX record (MX `byucalendar.com → inbound-smtp.us-east-1.amazonaws.com`, priority 10, the only root MX), Resend verified the domain with receiving enabled, and a real end-to-end test email arrived in `inbound_emails`. Live checks on September 18: unsigned webhook posts and signed-out inbox requests both 401, a correctly-signed test webhook passed signature verification, and `/moderation/emails` served 200.
+Setup completed September 18, 2026 via the Resend API (key used server-side only): receiving was enabled on the existing verified `byucalendar.com` domain (PATCH `/domains/:id` capabilities), a webhook was created for `https://byucalendar.com/api/emails/inbound` with the `email.received` event, and its signing secret is in `.env.accounts` as `RESEND_INBOUND_SECRET`. The team then supplied a Cloudflare API token, stored **only** in Git-ignored env files — `.env.cloudflare` in the repo root (matched by the `.env*` ignore rule) and a mode-600 copy on the server; the value is never written to tracked files. That token added the receiving MX record (MX `byucalendar.com → inbound-smtp.us-east-1.amazonaws.com`, priority 10, the only root MX), Resend verified the domain with receiving enabled, and a real end-to-end test email arrived in `inbound_emails`. Live checks on September 18: unsigned webhook posts and signed-out inbox requests both 401, a correctly-signed test webhook passed signature verification, and `/moderation/emails` served 200.
 
-For the self-hosted Wrangler runtime, use `/home/jarin/byucalendar/.env.accounts` with `KEY="value"` entries, owned by `jarin` and mode `600`. The repository's systemd unit now passes that **absolute path** using Wrangler's `--env-file`. Install the revised unit when activating this release. The file sits outside `dist/`, so rebuilding and uploading the app preserves it. Do not place persistent credentials inside the generated build directory. `.env*` and `.dev.vars*` are Git-ignored.
+For the self-hosted Wrangler runtime, use an `.env.accounts` file in the app directory with `KEY="value"` entries, owned by the service user and mode `600`. The repository's systemd unit now passes that **absolute path** using Wrangler's `--env-file`. Install the revised unit when activating this release. The file sits outside `dist/`, so rebuilding and uploading the app preserves it. Do not place persistent credentials inside the generated build directory. `.env*` and `.dev.vars*` are Git-ignored.
 
 For a local built preview, use an absolute path to a private `.env.accounts` file:
 
@@ -73,15 +73,15 @@ Migration `drizzle/0001_byu_accounts_community.sql` adds authentication, quotas,
 
 Before deploying this account release to the existing server:
 
-1. Upload `drizzle/0001_byu_accounts_community.sql` into `/home/jarin/byucalendar/drizzle/`.
+1. Upload `drizzle/0001_byu_accounts_community.sql` into the server's `drizzle/` directory.
 2. Pause the refresh cron and stop `byucalendar.service`, then back up the entire `.wrangler/state/` directory while it is not being written.
-3. From `/home/jarin/byucalendar`, apply the migration with the existing runtime/config:
+3. From the app directory on the server, apply the migration with the existing runtime/config:
 
    ```bash
-   /home/jarin/node22/bin/node --import ./scripts/sites-env.mjs ./runtime/node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0001_byu_accounts_community.sql
+   node --import ./scripts/sites-env.mjs ./runtime/node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0001_byu_accounts_community.sql
    ```
 
-4. Create the private `.env.accounts` file when ready, install the revised `deploy/byucalendar.service` to `/etc/systemd/system/byucalendar.service`, and run `sudo systemctl daemon-reload`.
+4. Create the private `.env.accounts` file when ready, install the systemd unit (`deploy/byucalendar-colo.service`) to `/etc/systemd/system/byucalendar.service`, and run `sudo systemctl daemon-reload`.
 5. Deploy the built code using `bash deploy/update.sh`, then restore the refresh cron. Check `/api/events` and `/api/account`. Missing email config should leave contributions gated and browsing operational.
 6. Once Resend is configured, verify delivery to an actual authorized BYU inbox, complete sign-in, publish a real intended listing/tag, submit a report, and verify the chosen administrator can review it. Verify sign-out removes contribution access.
 

@@ -39,15 +39,8 @@ yarn-error.log*
 next-env.d.ts
 /dist/
 /.wrangler/
-# Checkout-local execution profile and tool state; never publish them.
+# Local tool state and scratch output.
 /.runtime-state/
-/.agents/
-/.local-tooling/
-/outputs/
-/work/
-# Raw account exports stay local; only reviewed, normalized event listings enter the seed.
-/Handshake/
-# Generated flyers (rebuild with scripts/generate-flyer.py) and local scratch tooling.
 /output/
 /tmp/
 *.tsbuildinfo

@@ -8,7 +8,7 @@ const bash = process.platform === 'win32' ? 'C:/Program Files/Git/bin/bash.exe' 
 const hasBash = spawnSync(bash, ['--version'], {windowsHide: true}).status === 0;
 const deploy = readFileSync(new URL('../deploy/update.sh', import.meta.url), 'utf8');
 const activation = deploy.match(/<<'REMOTE'\r?\n([\s\S]*?)\r?\nREMOTE/)[1];
-const fixtures = path.resolve('.local-tooling/security-review/deploy-fixtures');
+const fixtures = path.resolve('tmp/deploy-fixtures');
 
 function fixture(t) {
   mkdirSync(fixtures, {recursive: true});

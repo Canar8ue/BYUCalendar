@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
-# Redeploy BYU Calendar to its isolated directory on the co-located server.
+# Redeploy BYU Calendar to its production server.
 # Usage (from project root, Git Bash): bash deploy/update.sh
 # Stages the build and locked runtime before stopping the service. Keeps the
 # previous build/runtime together for rollback; never moves persistent D1 state.
 # D1 data in ~/byucalendar/.wrangler/state is preserved across deploys.
 set -euo pipefail
 
-# Target server is overridable (see deploy/deploy notes for history):
-# byucalendar.com moved to the co-located box on September 16, 2026.
-SERVER="${BYUC_SERVER:-deploy@203.0.113.10}"
+# Machine-local target overrides live in deploy/target.env (git-ignored);
+# variables already set in the shell always win over it.
+if [[ -f deploy/target.env ]]; then . deploy/target.env; fi
+SERVER="${BYUC_SERVER:-deploy@your-server}"
 KEY="${BYUC_KEY:-$HOME/.ssh/id_rsa}"
 REMOTE_DIR="${BYUC_DIR:-/home/deploy/byucalendar}"
 

@@ -44,7 +44,7 @@ The app ships SEO basics from `app/layout.tsx` and static files in `public/`: a 
 
 ## Saved calendars
 
-The account implementation uses Better Auth with BYU email verification through Resend. Bookmarks and saved filters use the verified account’s stable ID in D1. Mock sign-in is disabled; legacy headers are not trusted. Existing preferences under old identity IDs are not automatically reassigned. The account release is active on the self-hosted server; the current local security fixes and the pending privacy/event-dialog refinements still need deployment. See [account setup](ACCOUNTS.md) for permissions, the required migration, and activation steps. Source records that disappear entirely from a feed may cease to appear in saved calendars; the app does not maintain a historical archive of removed records. Downloads are ordinary `.ics` snapshots, not live external subscriptions.
+The account implementation uses Better Auth with BYU email verification through Resend. Bookmarks and saved filters use the verified account’s stable ID in D1. Mock sign-in is disabled; legacy identity headers are not trusted. Existing preferences under old identity IDs are not automatically reassigned. The account release is active on the self-hosted server; the current local security fixes and the pending privacy/event-dialog refinements still need deployment. See [account setup](ACCOUNTS.md) for permissions, the required migration, and activation steps. Source records that disappear entirely from a feed may cease to appear in saved calendars; the app does not maintain a historical archive of removed records. Downloads are ordinary `.ics` snapshots, not live external subscriptions.
 
 ## Security review
 
@@ -80,7 +80,7 @@ Counts, category rings, location dialogs, and exports use the existing filtered 
 
 Browser smoke checks: toggle Map, change day, apply category/detail/search filters, click a count and a building, follow “See on Map” from an event, reload its URL, and check phone width. Nearby pins use collision spacing and leader lines; confirm each count selects its own venue after camera movement.
 
-Use Node 22.13+ and the package lockfile. Run `npm run install:ci`, `npm run db:generate` after schema changes, and `npm run dev`. On this Windows host the tooling wrapper's npm shim could not resolve npm, so direct `node scripts/run-framework.mjs dev` and `node scripts/run-framework.mjs build` were used successfully. The underlying npm CLI is at `C:/Program Files/nodejs/node_modules/npm/bin/npm-cli.js`.
+Use Node 22.13+ and the package lockfile. Run `npm run install:ci`, `npm run db:generate` after schema changes, and `npm run dev`. On this Windows host the npm shim could not resolve npm, so direct `node scripts/run-framework.mjs dev` and `node scripts/run-framework.mjs build` were used successfully. The underlying npm CLI is at `C:/Program Files/nodejs/node_modules/npm/bin/npm-cli.js`.
 
 Local D1 migrations use the built config:
 
@@ -88,6 +88,6 @@ Local D1 migrations use the built config:
 node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0000_pink_scarlet_spider.sql
 ```
 
-A fresh database also needs `drizzle/0001_byu_accounts_community.sql` using the same command with that filename. Existing databases need only migrations not already applied. Do not replay applied production migrations. The account preview uses separate `.wrangler/accounts-preview` state. Production runs on the self-managed server; see [deployment](../deploy/DEPLOY.md) and the account guide before deploying schema changes.
+A fresh database also needs `drizzle/0001_byu_accounts_community.sql` using the same command with that filename. Existing databases need only migrations not already applied. Do not replay applied production migrations. The account preview uses separate `.wrangler/accounts-preview` state. Production runs on the self-hosted server; see [deployment](../deploy/DEPLOY.md) and the account guide before deploying schema changes.
 
 Checks: `npm test`, `node node_modules/typescript/bin/tsc --noEmit`, the production build, then `npm run test:worker`. Run `node --test tests/deploy.test.mjs` when changing the release helper. Account tests use isolated D1; the built Worker tests intercept Resend and never email a real inbox. The tests cover Denver offsets, rescheduling identity, recurrence exceptions, multi-day overlap, missing/negated details, search, club tagging, duplicate provenance, website imports with stale URL dates, origin bounds, partial source failures, snapshot dates, Handshake date/URL validation, ambiguous locations, stable IDs, field allowlisting, valid exports, bounded redirects, request sizes, export injection, authorization races, and deployment rollback.

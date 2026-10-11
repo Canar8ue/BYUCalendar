@@ -10,7 +10,7 @@ export function readExecutionProfile() {
     throw error;
   }
   if (!["managed-linux", "portable"].includes(settings?.executionProfile)) {
-    throw new Error("Invalid local execution profile; rerun the build tooling's configure-execution-profile.mjs.");
+    throw new Error("Invalid local execution profile; see scripts/execution-profile.mjs.");
   }
   return settings.executionProfile;
 }

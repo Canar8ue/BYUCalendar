@@ -1,30 +1,28 @@
-# Hosting BYU Calendar on the co-located server (byucalendar.com)
+# Hosting BYU Calendar on a self-managed server (byucalendar.com)
 
-Server: `deploy@203.0.113.10` (SSH key `~/.ssh/id_rsa`; sudo password
-required except for the five `systemctl byucalendar` commands covered by
-`/etc/sudoers.d/byucalendar`). The box also hosts service-a, service-b, and
-service-c — **never touch their PM2 processes, directories, or nginx
-vhosts** (`service-a`, `service-b`, `service-c`), and never run
-`pm2 restart all`.
+Server: a colocated Linux box. This runbook uses `deploy@your-server` and
+`/home/deploy/byucalendar`; adjust them to your own host. Root access is
+limited to a scoped `/etc/sudoers.d/byucalendar` rule covering the five
+`systemctl byucalendar` commands, so `deploy/update.sh` can run
+non-interactively; delete that file to revoke.
 
-Moved here September 16, 2026 from the GCP e2-micro (which swap-thrashed at
-1 GB RAM); migration runbook and history: [deploy notes](deploy notes).
+Deploy target overrides live in `deploy/target.env` (git-ignored): set
+`BYUC_SERVER`, `BYUC_KEY`, and `BYUC_DIR` there, or export them in the shell
+before running the helper (shell values win).
 
-## What is set up (September 16, 2026)
+## What is set up
 
 | Piece | Location / detail |
 | --- | --- |
-| Node 22.22.1 | `/usr/bin/node` (system install; already present for service-a) |
-| App files | `/home/deploy/byucalendar/` (`dist/`, `data/seed.json`, `drizzle/`, `scripts/`, `runtime/` with the locked Wrangler 4.92 + workerd runtime, `package.json`) |
+| Node 22 | system install (`/usr/bin/node`) |
+| App files | `/home/deploy/byucalendar/` (`dist/`, `data/seed.json`, `drizzle/`, `scripts/`, `runtime/` with the locked Wrangler + workerd runtime, `package.json`) |
 | D1 database | `/home/deploy/byucalendar/.wrangler/state/` — accounts, sessions, bookmarks, listings, reports, source snapshots. **Back this up to preserve everything.** |
-| Account env | `/home/deploy/byucalendar/.env.accounts` (mode 600) — auth secret, Resend key, admin allowlist. Same secret as before the move, so sessions survived. |
-| Smart search AI key | `SEARCH_ASSIST_API_KEY` in the same `.env.accounts` — key for `POST /api/search/assist`, the natural-language search backup (September 21, 2026). Optional `SEARCH_ASSIST_BASE_URL` (default `https://api.deepseek.com`) and `SEARCH_ASSIST_MODEL` (default `deepseek-flash`); the z.ai GLM coding plan is the tested alternative (`https://api.z.ai/api/coding/paas/v4` + `glm-5.3-flash`, ~5 s vs ~1.5 s). Without a key the endpoint reports unavailable and the calendar keeps its deterministic search. Values never enter Git. |
+| Account env | `/home/deploy/byucalendar/.env.accounts` (mode 600) — auth secret, Resend key, admin allowlist, and the optional search-assist key. Values never enter Git. |
+| Search assist key | `SEARCH_ASSIST_API_KEY` in the same `.env.accounts` — key for `POST /api/search/assist`, the natural-language search backup. Optional `SEARCH_ASSIST_BASE_URL` (default `https://api.deepseek.com`) and `SEARCH_ASSIST_MODEL` (default `deepseek-flash`). Without a key the endpoint reports unavailable and the calendar keeps its deterministic search. |
 | systemd service | `/etc/systemd/system/byucalendar.service` (repo copy: `deploy/byucalendar-colo.service`) — wrangler local mode on `127.0.0.1:8788`, auto-restart, enabled at boot |
-| Nginx vhost | `sites-available/byucalendar` (repo copy: `deploy/byucalendar.nginx.conf`, with `http2 on;` syntax for nginx 1.28) — 443 with Let's Encrypt cert, gzip, proxy to 8788 |
-| TLS cert | `/etc/letsencrypt/live/byucalendar.com/` — copied from the old server at migration; `certbot renew --dry-run` verified working here (the box renews three other certs too; all passed) |
-| Auto refresh | crontab for `deploy`: hourly at :10 plus `7,27,47 * * * *`, both POST `/api/refresh` → `~/byucalendar/refresh.log` |
-| Daily digest dispatch | same crontab: `2,17,32,47 * * * *` POST `/api/reminders/dispatch` with the `Origin` header and `Authorization: Bearer $REMINDERS_DISPATCH_TOKEN` → `~/byucalendar/refresh.log`; the endpoint only sends between 7:00 and 10:00 AM Mountain Time (added September 28, 2026) |
-| Passwordless sudo | `/etc/sudoers.d/byucalendar` — only `systemctl {restart,is-active,status,start,stop} byucalendar`, so `deploy/update.sh` works non-interactively. Delete the file to revoke. |
+| Nginx vhost | `sites-available/byucalendar` (repo copy: `deploy/byucalendar.nginx.conf`) — 443 with a Let's Encrypt cert, gzip, proxy to 8788 |
+| Auto refresh | crontab for the service user: hourly at :10 plus `7,27,47 * * * *`, both POST `/api/refresh` → `~/byucalendar/refresh.log` |
+| Daily digest dispatch | same crontab: `2,17,32,47 * * * *` POST `/api/reminders/dispatch` with the `Origin` header and `Authorization: Bearer $REMINDERS_DISPATCH_TOKEN`; the endpoint only sends between 7:00 and 10:00 AM Mountain Time |
 
 ## Day-to-day operations
 
@@ -42,18 +40,8 @@ Moved here September 16, 2026 from the GCP e2-micro (which swap-thrashed at
   build/runtime for rollback when activation fails. It does not apply D1
   migrations automatically.
 
-- **Logs:** `ssh -i ~/.ssh/id_rsa deploy@203.0.113.10 'journalctl -u byucalendar -f'`
+- **Logs:** `ssh -i ~/.ssh/id_rsa deploy@your-server 'journalctl -u byucalendar -f'`
   (sudo for full output); refresh results: `~/byucalendar/refresh.log`.
-- **Restart:** `ssh -i ~/.ssh/id_rsa deploy@203.0.113.10 'sudo systemctl restart byucalendar'`
+- **Restart:** `ssh -i ~/.ssh/id_rsa deploy@your-server 'sudo systemctl restart byucalendar'`
   (works without the password thanks to the scoped sudo rule).
-- **Back up all data:** stop the service, copy `/home/deploy/byucalendar/.wrangler/state/`, restart.
-
-## Previous host (rollback reference)
-
-The GCP e2-micro `deploy@203.0.113.11` (key `~/.ssh/id_mc_python`) kept its
-copy of the app and D1 state, with `byucalendar.service` **stopped** since the
-September 16 cutover. It still hosts portfolio-site.co and client-site —
-do not decommission that instance. Rollback (first week only, before data
-diverges): point the Cloudflare A record back to `203.0.113.11` and
-`sudo systemctl start byucalendar` there. Once confident, disable it there
-(`sudo systemctl disable --now byucalendar` and remove its crontab entries).
+- **Back up all data:** stop the service, copy `.wrangler/state/`, restart.
