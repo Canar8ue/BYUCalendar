@@ -59,7 +59,7 @@ export function EventTip({visible, hasDirections, hasMap, signedIn, signInHref, 
   return (
     <div className="tour-card" role="note" aria-label="Event actions tip">
       <TourKicker/>
-      {hasDirections && <div className="tour-line"><Navigation size={15}/><span><b>Take me there</b> hands the venue to your own maps app for directions.</span></div>}
+      {hasDirections && <div className="tour-line"><Navigation size={15}/><span><b>Directions in Maps</b> opens the venue directly in Google Maps or Apple Maps.</span></div>}
       {!hasDirections && hasMap && <div className="tour-line"><MapPin size={15}/><span><b>View on 3D map</b> flies the campus map to this building on its day.</span></div>}
       <div className="tour-line"><Bookmark size={15}/><span><b>Save event</b> keeps it on My calendar so it’s easy to find later.</span></div>
       {!signedIn && (

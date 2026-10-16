@@ -262,3 +262,17 @@ test('moderator overrides patch events at read time and re-derive attendance for
  assert.equal(cleared.format,null);
  assert.ok(!cleared.tags.includes('Online')&&!cleared.tags.includes('In person'));
 });
+
+test('interest filters match inclusively (OR) with IS/AIS equivalence while perk filters narrow (AND)',()=>{
+ const finFood=classify({title:'Finance Dinner',description:'Free dinner provided.',location:'TNRB 151',url:'',sourceId:'finance-society',category:'Career & business',start:'2026-09-18T00:00:00Z',allDay:false});
+ const aisOnly={...classify({title:'Tech Meet',description:'Come meet peers.',location:'TNRB 240',url:'',sourceId:'test',category:'Career & business',start:'2026-09-18T01:00:00Z',allDay:false}),tags:['AIS','In person']};
+ // Selecting both Finance and Accounting matches an event that only has Finance (inclusive OR).
+ assert.equal(matchesEvent(finFood,'',['Career & business'],['Finance','Accounting'],now),true);
+ // Selecting IS matches an AIS-tagged event and vice versa.
+ assert.equal(matchesEvent(aisOnly,'',[],['IS'],now),true);
+ assert.equal(matchesEvent({...aisOnly,tags:['IS']},'',[],['AIS'],now),true);
+ // Adding a perk filter narrows (AND) on top of the inclusive interest match.
+ assert.equal(matchesEvent(finFood,'',[],['Finance','Accounting','Food provided'],now),true);
+ assert.equal(matchesEvent(aisOnly,'',[],['IS','Food provided'],now),false);
+});
+
