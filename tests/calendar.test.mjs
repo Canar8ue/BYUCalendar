@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import ICAL from 'ical.js';
 import {parseICS,classify,clean,civilToISO,eventDays,mergeEvents,splitDescriptionProvenance} from '../lib/catalog.mjs';
-import {parseSearch,matchesEvent,exportICS,eventSlug,googleCalendarUrl,personalCalendarKind} from '../lib/search.mjs';
+import {parseSearch,matchesEvent,exportICS,eventSlug,googleCalendarUrl,personalCalendarKind,savedViewSummary} from '../lib/search.mjs';
 import {listingLinks,eventPage,importSource,sameSite} from '../lib/source-import.mjs';
 import {parseClubSnapshot} from '../lib/club-snapshot.mjs';
 import {parseHandshakeSnapshot} from '../lib/handshake-snapshot.mjs';
@@ -274,5 +274,16 @@ test('interest filters match inclusively (OR) with IS/AIS equivalence while perk
  // Adding a perk filter narrows (AND) on top of the inclusive interest match.
  assert.equal(matchesEvent(finFood,'',[],['Finance','Accounting','Food provided'],now),true);
  assert.equal(matchesEvent(aisOnly,'',[],['IS','Food provided'],now),false);
+});
+
+test('saved set summaries read like the filter bar and never double up IS/AIS',()=>{
+ assert.equal(savedViewSummary('',[],[]),'All events');
+ assert.equal(savedViewSummary('this week',[],['IS','Clubs','Food provided']),'this week · IS / AIS · Clubs · Food provided');
+ // A pair stored by the picks chat or an older filter set collapses to one label.
+ assert.equal(savedViewSummary('',[],['IS','AIS']),'IS / AIS');
+ // An AIS-only set is described the way the bar renders its AIS tag.
+ assert.equal(savedViewSummary('',['Academic'],['AIS']),'Academic · IS / AIS');
+ // Duplicates and empty entries never leak into the label.
+ assert.equal(savedViewSummary('',['Academic','Academic'],['Clubs','','Clubs']),'Academic · Academic · Clubs');
 });
 

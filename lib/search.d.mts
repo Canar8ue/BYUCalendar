@@ -3,6 +3,7 @@ export type SearchIntent={tags:string[];labels:string[];start:string|null;end:st
 export function dayKey(date:Date):string;
 export function parseSearch(query:string,now?:Date):SearchIntent;
 export function matchesEvent(event:CampusEvent,query:string|SearchIntent,categories?:string[],tags?:string[],now?:Date):boolean;
+export function savedViewSummary(query:string,categories?:string[],tags?:string[]):string;
 export function exportICS(events:CampusEvent[]):string;
 export function eventSlug(title:string):string;
 export function googleCalendarUrl(event:CampusEvent):string|null;

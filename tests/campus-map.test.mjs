@@ -42,3 +42,21 @@ test('lookup anchors and pick identities belong to the paired delivered catalog'
  const wsc=campusLocations.find(l=>l.code==='WSC');assert(wsc.featureIds.length>1);
  assert.equal(campusLocations.filter(l=>l.name==='LaVell Edwards Stadium').length,1);
 });
+test('campus viewer forwards wheel zoom over markers without browser zoom and keeps cache tokens in sync',()=>{
+ const html=readFileSync(new URL('../public/campus/index.html',import.meta.url),'utf8');
+ const js=readFileSync(new URL('../public/campus/calendar-map.js',import.meta.url),'utf8');
+ const css=readFileSync(new URL('../public/campus/calendar-map.css',import.meta.url),'utf8');
+ const valley=readFileSync(new URL('../public/campus/valley-context.js',import.meta.url),'utf8');
+ assert.match(js,/addEventListener\('wheel',event=>\{event\.preventDefault\(\);if\(event\.target!==renderer\.domElement\)controls\._onMouseWheel\(event\);\},\{passive:false\}\)/);
+ assert.match(css,/html,body,canvas,\.pin,\.tools\{touch-action:none\}/);
+ const versions=[
+  html.match(/calendar-map\.css\?v=(\d+)/)?.[1],
+  html.match(/calendar-map\.js\?v=(\d+)/)?.[1],
+  js.match(/valley-context\.js\?v=(\d+)/)?.[1],
+  js.match(/campus_web\.glb\?v=(\d+)/)?.[1],
+  js.match(/coordinates\.json\?v=(\d+)/)?.[1],
+  valley.match(/valley_lod\.glb\?v=(\d+)/)?.[1]
+ ];
+ assert.equal(versions.every(v=>v&&v===versions[0]),true,`Expected matching ?v= tokens across campus assets, got ${versions.join(', ')}`);
+});
+

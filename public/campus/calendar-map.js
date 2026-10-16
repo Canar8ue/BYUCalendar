@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {MeshoptDecoder} from './vendor/meshopt_decoder.module.js';
-import {loadValleyContext} from './valley-context.js?v=20261005';
+import {loadValleyContext} from './valley-context.js?v=20261015';
 
 const stage=document.getElementById('map'),labels=document.getElementById('labels'),loading=document.getElementById('loading');
 const send=data=>parent.postMessage({channel:'byu-calendar-map',...data},location.origin);
@@ -107,6 +107,9 @@ try{
   renderer.domElement.tabIndex=0;renderer.domElement.setAttribute('aria-label','Campus map. Arrow keys pan. Plus and minus zoom. Use location buttons below the map to browse events.');stage.prepend(renderer.domElement);
   scene.add(new THREE.HemisphereLight(0xffffff,0x899b7c,2));const sun=new THREE.DirectionalLight(0xfff6e6,2.8);sun.position.set(-35,70,20);scene.add(sun);
   controls=new OrbitControls(camera,renderer.domElement);controls.target.set(1,1,-5);controls.enableDamping=true;controls.dampingFactor=.09;controls.minDistance=3;controls.maxDistance=280;controls.maxPolarAngle=Math.PI*.47;controls.zoomToCursor=true;controls.screenSpacePanning=true;controls.addEventListener('change',invalidate);controls.addEventListener('start',()=>{flight=null;});
+  addEventListener('wheel',event=>{event.preventDefault();if(event.target!==renderer.domElement)controls._onMouseWheel(event);},{passive:false});
+  labels.addEventListener('pointerdown',event=>{if(event.button!==0||controls._pointers.length>0)controls._onPointerDown(event);});
+  labels.addEventListener('contextmenu',event=>event.preventDefault());
   addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);invalidate();});
   const zoom=factor=>{flight=null;camera.position.sub(controls.target).multiplyScalar(factor).add(controls.target);invalidate();};
   document.getElementById('reset').onclick=reset;document.getElementById('fit').onclick=fit;
@@ -126,7 +129,7 @@ try{
   });
   renderer.domElement.addEventListener('webglcontextlost',event=>{event.preventDefault();loading.hidden=false;loading.textContent='3D graphics paused. Reload the page to restore the map. Events are still available below.';send({type:'error'});});
   const loader=new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
-  const [gltf,catalog]=await Promise.all([loader.loadAsync('./campus_web.glb?v=20261005'),fetch('./coordinates.json?v=20261005').then(r=>{if(!r.ok)throw new Error('Location data unavailable');return r.json();})]);
+  const [gltf,catalog]=await Promise.all([loader.loadAsync('./campus_web.glb?v=20261015'),fetch('./coordinates.json?v=20261015').then(r=>{if(!r.ok)throw new Error('Location data unavailable');return r.json();})]);
   model=gltf.scene;features=catalog.features;scene.add(model);model.updateMatrixWorld(true);model.traverse(o=>{if(o.isMesh&&o.geometry.getAttribute('_feature_id'))pickMeshes.push(o);});
   ready=true;loading.hidden=true;reset();buildPins();send({type:'ready'});
   loadValleyContext(loader,scene,camera,invalidate);

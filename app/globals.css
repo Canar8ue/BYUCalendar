@@ -24,6 +24,11 @@
    horizontal scrollbar on every page, so the wordmark yields to the Y mark
    alone while the controls keep their 40px touch size. */
 @media(max-width:360px){.brand>span{display:none}.nav-item{padding:10px}.signin-button{padding:8px 11px}}
+/* Phones: the brand, three labeled destinations, and the sign-in/account button
+   need about 450px together, so one row overflows below that and scrolls every
+   page sideways. The topbar wraps instead — brand and account keep the first
+   row, and the destinations take a full-width second row of equal buttons. */
+@media(max-width:500px){.topbar{height:auto;flex-wrap:wrap;padding:9px 12px;gap:8px}.topbar nav{order:3;flex:1 1 100%;margin-left:0;gap:6px}.nav-item{flex:1 1 0;justify-content:center;min-height:40px}.nav-item>svg,.nav-count{display:none}.topbar .signin-button{margin-left:auto}}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 
 .week-grid .day-cell{height:auto;min-height:430px;padding:10px 6px 15px}.week-grid .day-events{gap:8px}.week-grid .calendar-event{height:auto;min-height:61px;display:flex;flex-direction:column;align-items:flex-start;padding:7px 7px 8px;gap:4px;border-left-width:3px}.week-grid .calendar-event .event-time{display:block;font-size:12px}.week-grid .calendar-event>span:not(.event-time){white-space:normal;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;line-height:1.4;font-size:12px;overflow:hidden}.week-grid .day-number{margin-bottom:13px}.week-grid .day-cell{border-bottom:0}.week-grid .day-number>span{display:none}@media(max-width:650px){.week-grid .day-cell{padding:8px 3px;min-height:390px}.week-grid .calendar-event{padding:5px 3px;min-height:65px}.week-grid .calendar-event .event-time{font-size:12px}.week-grid .calendar-event>span:not(.event-time){font-size:12px;word-break:normal;-webkit-line-clamp:4}.calendar-toolbar h2{font-size:16px}.calendar-actions{gap:1px}.view-toggle button{padding:5px}.month-navigation button{width:22px}}
@@ -312,6 +317,34 @@
 .quick-cat.active .category-icon{background:rgb(255 255 255/.22);color:#fff}
 .row-directions{color:var(--green);border-color:#b8dfc2;background:var(--green-t)}
 .row-directions:hover{border-color:var(--green);background:#d7eedd;color:var(--green)}
+
+/* Saving filters: the Saved menu offers two clear paths — keep the filters on
+   screen, or assemble a set in the custom builder. Both store an ordinary saved
+   view, and each dialog links to the other. */
+.saved-empty{margin:0 0 2px}
+.saved-set-actions{display:flex;flex-direction:column;gap:9px;margin-top:15px;padding-top:15px;border-top:2px dotted var(--line)}
+.saved-set-actions .outline-button{width:100%;font-size:13px;min-height:38px}
+.saved-set-actions .save-filter-link{color:var(--ink2);display:inline-flex;align-items:center;justify-content:center;gap:7px}
+.saved-set-actions .save-filter-link:hover{border-color:var(--grey);background:var(--surface)}
+.saved-view-open{display:flex;align-items:flex-start;gap:8px;flex:1;min-width:0}
+.saved-view-open:hover .saved-view-name{color:var(--blue-d)}
+.saved-view-name{display:flex;flex-direction:column;gap:2px;min-width:0;font-size:13px;font-weight:500}
+.saved-view-name small{font:400 11px/1.45 var(--font-ui);color:var(--grey);overflow-wrap:anywhere}
+.saved-view-remove{flex-shrink:0;min-width:24px;min-height:24px}
+.saved-view-remove:hover{color:var(--red)}
+.saved-views-list{max-height:min(48vh,360px);overflow:auto}
+.dialog-alt{margin-top:15px;font-size:12.5px;display:inline-flex;align-items:center;gap:6px}
+.saved-preview .preview-label{margin:0 0 6px;font-size:10px;letter-spacing:.1em}
+/* The builder is the tallest dialog in the app: a wider modal and tighter
+   groups keep its "Save and show these events" action above the fold on a
+   laptop window instead of hiding it behind a scroll. */
+.custom-modal{width:min(860px,calc(100vw - 34px));max-height:calc(100dvh - 30px)}
+.custom-dialog .empty-icon{padding:13px}
+.custom-group{margin-bottom:17px}
+.custom-group .section-label{margin-bottom:9px}
+.custom-group .popover-chips .quick{min-height:31px;font-size:12.5px}
+.label-note{font:600 10px var(--font-mono);letter-spacing:.09em;color:#9aa0a6}
+@media(max-width:650px){.saved-set-actions .outline-button,.saved-set-actions .save-filter-link{min-height:42px}.custom-group .popover-chips .quick{min-height:38px}.saved-view{margin-top:9px;gap:10px}.saved-view-open{padding:9px 0}.saved-view-remove{min-width:40px;min-height:40px}}
 
 /* ============================================================
    LOADER — BYU-blue (#002E5D) launch screen: quick curtain reveal. */
