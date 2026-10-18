@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import ICAL from 'ical.js';
 import {parseICS,classify,clean,civilToISO,eventDays,mergeEvents,splitDescriptionProvenance} from '../lib/catalog.mjs';
 import {parseSearch,matchesEvent,exportICS,eventSlug,googleCalendarUrl,personalCalendarKind,savedViewSummary} from '../lib/search.mjs';
-import {listingLinks,eventPage,importSource,sameSite} from '../lib/source-import.mjs';
+import {listingLinks,eventPage,importSource,sameSite,sportsSchedule} from '../lib/source-import.mjs';
 import {parseClubSnapshot} from '../lib/club-snapshot.mjs';
 import {parseHandshakeSnapshot} from '../lib/handshake-snapshot.mjs';
 import {SOURCES,UNCONNECTED,INTEREST_TAGS} from '../lib/catalog.mjs';
@@ -111,6 +111,79 @@ test('partial page failures retain known events and unexpected layouts fail inst
  const read=async url=>{if(url.endsWith('/offline'))throw new Error('Offline');return url===club.url?listing:url.includes('_event.ics')?wrap(record(':20260918T180000Z')):'<a href="/_event.ics?e=good">Add</a>';};
  const result=await importSource(club,{now,read,previous:[old]});assert.equal(result.events.length,2);assert.match(result.warning,/1 event pages/);assert.ok(result.events.some(e=>e.id===old.id));
  assert.throws(()=>listingLinks('<main>Login</main>',club),/format changed/);
+});
+test('the all-sports schedule maps to calendar records and follows the API across pages',async()=>{
+ const athletics={id:'byucougars',name:'BYU Athletics',url:'https://byucougars.com/all-sports-schedule',kind:'sports-schedule',feed:'https://byucougars.com/website-api/schedule-events',category:'Sports & recreation'};
+ const rows=[
+  {id:1,datetime:'2026-10-23T00:30:00.000000Z',datetime_end:null,is_all_day:false,opponent_name:'No. 25 Colorado',neutral_event_preposition:'vs',venue_type:'home',location:'Provo, Utah',venue:'Smith Fieldhouse',schedule:{sport:{name:"Women's Volleyball"}},is_conference:true},
+  {id:2,datetime:'2026-10-24T18:00:00.000000Z',datetime_end:'2026-10-24T17:00:00.000000Z',is_all_day:false,opponent_name:'UCF',venue_type:'away',location:'Orlando, Florida',venue:'Acrisure Bounce House',schedule:{sport:{name:'Football'}},tba:'time_tba',is_conference:true},
+  {id:3,datetime:'2026-11-09T15:00:00.000000Z',is_all_day:false,opponent_name:'TBA',opponent:{name:'Big 12'},venue_type:'away',location:'',schedule:{sport:{name:"Women's Soccer"}}},
+ ];
+ const records=sportsSchedule({data:rows},athletics);
+ assert.equal(records.length,3);
+ assert.equal(records[0].title,"Women's Volleyball vs. Colorado");
+ assert.equal(records[0].start,'2026-10-23T00:30:00.000Z');
+ assert.equal(records[0].end,null);
+ assert.equal(records[0].location,'Provo, Utah / Smith Fieldhouse');
+ assert.equal(records[0].category,'Sports & recreation');
+ assert.match(records[0].description,/Conference contest/);
+ assert.equal(records[1].title,'Football at UCF');
+ assert.equal(records[1].end,null); // the source's end predates the start, so it is withheld
+ assert.match(records[1].description,/TBA/);
+ assert.equal(records[2].title,"Women's Soccer at Big 12");
+ // All-day ranges become date-only values with an exclusive end so .ics export works.
+ const allDay=sportsSchedule({data:[{id:6,datetime:'2027-05-14T00:00:00.000000Z',datetime_end:'2027-05-16T00:00:00.000000Z',is_all_day:true,opponent_name:'Big 12 Softball Tournament',venue_type:'away',location:'Oklahoma City, Oklahoma',schedule:{sport:{name:'Softball'}}}]},athletics)[0];
+ assert.equal(allDay.start,'2027-05-14');
+ assert.equal(allDay.end,'2027-05-17'); // the source's inclusive May 16 end
+ assert.match(exportICS([allDay]),/DTSTART;VALUE=DATE:20270514/);
+ assert.ok(googleCalendarUrl(allDay));
+ // A malformed row is skipped instead of failing the whole source.
+ const mixed=sportsSchedule({data:[{...rows[0],id:7,datetime:'not a date'},rows[0]]},athletics);
+ assert.equal(mixed.length,1);
+ const dateTba=sportsSchedule({data:[{...rows[0],id:8,tba:'date_tba'}]},athletics)[0];
+ assert.match(dateTba.description,/date as TBA/);
+ // A venue whose name contains "Club" must not leak the Clubs interest tag.
+ const clubVenue=sportsSchedule({data:[{...rows[0],id:4,location:"Lihu'e, HI",venue:'Ocean Course at Hokuala Golf Club'}]},athletics)[0];
+ assert.equal(clubVenue.location,"Lihu'e, HI / Ocean Course at Hokuala Golf Club");
+ assert.ok(!clubVenue.tags.includes('Clubs'));
+ const clubTournament=sportsSchedule({data:[{...rows[0],id:5,opponent_name:'The Preserve Golf Club Collegiate',schedule:{sport:{name:"Men's Golf"}}}]},athletics)[0];
+ assert.ok(!clubTournament.tags.includes('Clubs'));
+ // A real student organization still tags Clubs.
+ assert.ok(classify({title:'Finance Club Opening Social',description:'',sourceId:'test'}).tags.includes('Clubs'));
+ const seen=[];
+ const read=async url=>{seen.push(url);return JSON.stringify({data:[rows[0]],meta:{last_page:2,current_page:url.includes('page=1')?1:2}});};
+ const imported=await importSource(athletics,{read});
+ assert.equal(imported.events.length,2); // both pages are read
+ assert.equal(new URL(seen[0]).searchParams.get('filter[upcoming]'),'true');
+ assert.equal(new URL(seen[0]).searchParams.get('per_page'),'300');
+ await assert.rejects(()=>importSource(athletics,{read:async()=>JSON.stringify({data:[{id:9}]})}),/format changed/);
+ await assert.rejects(()=>importSource(athletics,{read:async()=>JSON.stringify({error:'down'})}),/Unexpected schedule data/);
+});
+test('placeholder kickoff times never duplicate an athletics contest across sources',()=>{
+ const base={allDay:false,location:'Smith Fieldhouse',category:'Sports & recreation',cancelled:false,sourceUpdated:null};
+ const calendar=classify({...base,title:"Women's Volleyball vs. Colorado",start:'2026-10-22T23:19:00.000Z',sourceId:'byu',sourceName:'BYU Events',url:'https://calendar.byu.edu/athletics/womens-volleyball-vs-colorado-2026-10-22',description:'Volleyball hosts Colorado at the Smith Fieldhouse.'});
+ const athletics=classify({...base,title:"Women's Volleyball vs. Colorado",start:'2026-10-23T00:30:00.000Z',sourceId:'byucougars',sourceName:'BYU Athletics',url:'https://byucougars.com/all-sports-schedule',description:''});
+ const merged=mergeEvents([calendar,athletics]);
+ assert.equal(merged.length,1);
+ assert.equal(merged[0].sourceId,'byu');
+ assert.ok(merged[0].additionalSources.some(s=>s.name==='BYU Athletics'));
+ // Two different sports against the same opponent on the same day are two events.
+ const soccer=classify({...base,title:"Women's Soccer vs. Utah",start:'2026-10-23T19:00:00.000Z',sourceId:'byu',sourceName:'BYU Events',url:'https://calendar.byu.edu/athletics/womens-soccer-vs-utah'});
+ const volleyball=classify({...base,title:"Women's Volleyball vs. Utah",start:'2026-10-23T19:00:00.000Z',sourceId:'byucougars',sourceName:'BYU Athletics',url:'https://byucougars.com/all-sports-schedule'});
+ assert.equal(mergeEvents([soccer,volleyball]).length,2);
+ // A doubleheader listed twice by one source is left alone (placeholder times never bridge it).
+ const twinA=classify({...base,title:"Men's Tennis at ITA",start:'2026-11-05T17:00:00.000Z',sourceId:'byucougars',sourceName:'BYU Athletics',url:'https://byucougars.com/all-sports-schedule'});
+ const twinB=classify({...base,title:"Men's Tennis at ITA",start:'2026-11-05T21:00:00.000Z',sourceId:'byucougars',sourceName:'BYU Athletics',url:'https://byucougars.com/all-sports-schedule'});
+ assert.equal(mergeEvents([twinA,twinB]).length,2);
+ // A doubleheader listed by both sources stays two games: a cross-source matchup
+ // merge is one-to-one, so it cannot chain four rows into a single event.
+ const game1=classify({...base,title:'Softball vs. Utah State',start:'2026-04-10T19:00:00.000Z',sourceId:'byu',sourceName:'BYU Events',url:'https://calendar.byu.edu/athletics/softball-vs-utah-state-1'});
+ const game2=classify({...base,title:'Softball vs. Utah State',start:'2026-04-10T21:00:00.000Z',sourceId:'byu',sourceName:'BYU Events',url:'https://calendar.byu.edu/athletics/softball-vs-utah-state-2'});
+ const ath1=classify({...base,title:'Softball vs. Utah State',start:'2026-04-10T19:30:00.000Z',sourceId:'byucougars',sourceName:'BYU Athletics',url:'https://byucougars.com/all-sports-schedule'});
+ const ath2=classify({...base,title:'Softball vs. Utah State',start:'2026-04-10T21:30:00.000Z',sourceId:'byucougars',sourceName:'BYU Athletics',url:'https://byucougars.com/all-sports-schedule'});
+ const doubleheader=mergeEvents([game1,game2,ath1,ath2]);
+ assert.equal(doubleheader.length,2);
+ assert.ok(doubleheader.every(e=>e.additionalSources.some(s=>s.name==='BYU Athletics')));
 });
 test('club snapshots preserve explicit next-year dates and keep unknown details unknown',()=>{
  const capture={capturedAt:'2026-09-14T22:00:00Z',calendarYear:2026,rows:[{title:'Clubs Rush',organization:'BYUSA Clubs Area',date:'Tuesday, January 12 2027 12:00 PM',location:'WSC Garden Court'},{title:'Opening Social',organization:'Women in Finance',date:'Tuesday, September 15 7:00 PM',location:'TBA'}]};

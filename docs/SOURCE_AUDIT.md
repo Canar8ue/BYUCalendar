@@ -1,4 +1,4 @@
-# Public source audit — September 14, 2026 (updated September 25, 2026)
+# Public source audit — September 14, 2026 (updated October 17, 2026)
 
 This is a broad discovery pass, not a claim that every BYU event is public or included. Source event counts overlap; the app merges matching listings.
 
@@ -17,6 +17,7 @@ This is a broad discovery pass, not a claim that every BYU event is public or in
 | [BYU Law](https://law.byu.edu/) | Linked 25Live public calendar ICS | 67 | Public law-school listings including academic dates. Attendance restrictions vary. |
 | [Marketing Association](https://ma.byu.edu/calendar) | Linked public Google ICS | 0 | The feed is reachable but has no upcoming records. Newer MA events appear in the club-directory snapshot. |
 | [BYU Student Organizations](https://clubs.byu.edu/) | Public browser-observed snapshot | 119 | 48 organizations. Explicitly **not** automatically refreshed. |
+| [BYU Athletics](https://byucougars.com/all-sports-schedule) | Athletics all-sports JSON (`website-api/schedule-events`) | 172 | Every team, home and away: football, basketball, volleyball, soccer, baseball, softball, golf, tennis, cross country, track & field, swimming, gymnastics, cheer and fan events. Start times tagged TBA are placeholders. Titles follow the `<sport> vs./at <opponent>` shape so games also listed on the main BYU calendar collapse to one entry with both links. |
 | [Y-Serve](https://yserve.byu.edu/events-and-activities) | Published Outlook ICS behind the page's embedded calendar (September 25, 2026) | 1,262 | 13 recurring volunteer programs (Stop and Serve, Adapted Institute, Digital Literacy, clinics, Project Uplift…) expanded into shift occurrences through September 2027. |
 
 Exact feed URLs are in `lib/catalog.mjs`. Website source URLs are refreshed to discover new event links; those links must stay on the configured origin. Page and request bounds intentionally fail rather than silently publish a truncated replacement.
@@ -38,6 +39,7 @@ Club coverage includes Accounting Society, Women in Finance, Finance Society/Inv
 | [Y-Serve](https://yserve.byu.edu/) | The September 14 pass found the embedded Outlook calendar but no usable records; the published `calendar.ics` behind the same embed was integrated on September 25, 2026 (see above). |
 | [Beta Alpha Psi](https://bap.byu.edu/) | Redirects to an unavailable Wix site. Kept unconnected. |
 | [Marriott club directory](https://marriott.byu.edu/clubs/directory) | Redirects to Student Organizations, whose published events were captured above. |
+| [Computing, Math, and Science](https://science.byu.edu/schedule-of-events) | The "Schedule of Events" page is a static Alumni Awards day schedule (Friday, February 27, 2026 — already past), not a live calendar; its RSS is empty and `science.byu.edu/iCal/export/all` returns a subset of the main BYU calendar whose UIDs the `byu` source already imports. Skipped to avoid duplicate listings; the college's department events already arrive through `byu`, `math`, and `cs`. |
 
 ## Handshake export reviewed and imported
 
