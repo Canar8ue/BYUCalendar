@@ -106,7 +106,7 @@ export default async function EventPage({params}:{params:Promise<{id:string}>}){
     :<p className="event-page-description event-page-muted">The source has not provided a description. Follow the original listing for details.</p>}
    <div className="event-page-actions">
     <a className="primary-button" href={calendarHref}>Open in BYU Calendar</a>
-    <a className="outline-button" href={'/api/events/ics?id='+encodeURIComponent(event.id)}>Add to external calendar</a>
+    <a className="outline-button" href={'/api/events/ics?id='+encodeURIComponent(event.id)}>Add to personal calendar</a>
     {event.url&&<a className="outline-button" href={event.url} target="_blank" rel="noreferrer">Original listing ↗</a>}
    </div>
    <p className="event-page-source">Listed from <a href={event.url||'/'} target="_blank" rel="noreferrer">{event.sourceName}</a>{event.additionalSources?.map((s,i)=><span key={i}> · <a href={s.url} target="_blank" rel="noreferrer">{s.name}</a></span>)} — details may change; check the organizer&apos;s listing before attending. Independent student project, not an official BYU service.</p>
