@@ -348,6 +348,7 @@
 .agenda-date small{display:block;margin-top:5px;font-size:10.5px;color:var(--grey);white-space:nowrap}
 .agenda-group.is-today .agenda-date>div{background:var(--blue-t);color:var(--blue-d)}
 .agenda-group.is-today .agenda-date small{color:var(--blue-d)}
+.today-pill{display:inline-block;margin-top:5px;padding:1px 6px;border-radius:20px;background:var(--blue);color:#fff;font:700 9px var(--font-mono);letter-spacing:.04em;text-transform:uppercase;font-style:normal;white-space:nowrap}
 .row-actions{display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap;flex-shrink:0;align-self:center}
 @media(max-width:650px){.agenda-group{gap:12px;padding:18px 0}.agenda-group:first-child{padding-top:6px}.agenda-date{width:50px}.agenda-date small{display:none}.row-actions{width:100%;justify-content:flex-start;margin-top:2px}.event-row-main{padding-right:0}.row-actions .row-calendar-button,.row-actions .bookmark-button{position:static;width:40px;height:40px}.row-actions .row-map-button{min-height:34px}}
 
